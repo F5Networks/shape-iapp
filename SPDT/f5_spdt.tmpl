@@ -1,0 +1,161 @@
+#TMSH-VERSION: 12.1.0
+
+    cli admin-partitions {
+    	update-partition Common
+    }
+    sys application template /Common/F5_spdt {
+    	actions {
+    		definition {
+    			html-help {<h6>SPDT pool member configuration</h6>
+<p><b>Note:</b> Before configuring the SPDT instance as a pool member, ensure that the SPDT instance is up and running.
+<ul>
+    <li><b>SPDT's traffic mirroring interface IP:</b> Enter the traffic mirroring interface IP of your SPDT.</li>
+    <li><b>SPDT Pool name:</b> Enter the SPDT pool name that you want the virtual server to use, or use the default SPDT_Pool.</li>
+    <li><b>Add ICMP Health Check:</b> Choose whether or not to perform the ICMP Health Check for pool members. The ICMP Health Check is performed in intervals of 45 seconds.</li>
+</ul>
+<h6>Virtual Server Configuration</h6>
+<ul>
+    <li><b>Application Virtual Server to mirror traffic to SPDT:</b> Select the virtual server of your application. Once the virtual server is selected, all traffic that goes through this virtual server mirrors to the SPDT system.</li>
+</ul>
+</p>
+}
+    			implementation {puts "=============== ${tmsh::app_name} Log =================== "
+proc tmsh_create { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_create "\"$component\"" "\"$arguments\""
+}
+
+proc tmsh_modify { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_modify "\"$component\"" "\"$arguments\""
+}
+
+proc spdt_config {} {
+    # Collect the ip adress and the pool name for the SPDT member
+    set ::spdt_member "$::spdt_instance__addr"
+    set ::spdt_pool_name "$::spdt_instance__pool_name"
+    set ::spdt_health "$::spdt_instance__health_check"
+    set ::spdt_port 80
+    set ::icmp_interval 45
+    set ::icmp_timeout 60
+    set ::spdt_icmp "spdt_icmp"    
+    set serverssl_profile ""
+    set app_pool ""
+
+    # If customer choose to use ICMP Health Check, we also add icmp-gateway health check with ::icmp_timeout and ::icmp_interval
+    if { $::spdt_health == "Yes" } {
+        # create gateway-icmp monitor with timeout set to ::icmp_timout and interval set to ::icmp_interval
+        tmsh_create "/ ltm monitor" "gateway-icmp /Common/$::spdt_icmp interval $::icmp_interval timeout $::icmp_timeout"
+        tmsh_create "/ ltm pool" {/Common/$::spdt_pool_name members add {$::spdt_member:$::spdt_port} monitor /Common/$::spdt_icmp}
+    } else {
+        tmsh_create "/ ltm pool" {/Common/$::spdt_pool_name members add {$::spdt_member:$::spdt_port}}
+    }
+
+    # Check if the Virtual Server contain serverssl profile.
+    set vs_obj [lindex [tmsh::get_config /ltm virtual ${::vs_config__vs}] 0]
+    foreach {profile} [tmsh::get_field_value $vs_obj profiles] {
+        if {[string first "serverssl" $profile] != -1} {
+            # split the profile by WS. 
+            # --- profile format: profiles /Common/ssl {context serverside}
+            set serverssl_profile [lindex [regexp -inline -all -- {\S+} $profile] 1]
+            puts "found serverssl profile: $serverssl_profile"
+            break
+        }
+    }
+
+    # If a server ssl profile attached to the virtual server, the iApp will split the virtual server into two virtual servers.
+    # The Origin virtual server will decrypt the request, clone it (server clone) and route the request to the second virtual server.
+    # The new virtual server will encrypt the request with ssl and will route to the origin pool.
+    if {$serverssl_profile != ""} {
+        set ::ssl_vs_port 80
+        # Set dumy address for the ssl virtual server since the request route via iRule and it is internal usage only
+        set ::ssl_vs_dumy_addr "10.10.10.10"
+        set ::ssl_vs_name "$::vs_config__vs\_ssl_vip"
+        # get the pool name so we can set it in the new VS
+        if {[tmsh::get_field_value $vs_obj pool app_pool]} {
+            tmsh_create "/ ltm virtual" "$::ssl_vs_name {description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${::ssl_vs_dumy_addr}:$::ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type automap } pool $app_pool }"            
+        } else {
+            puts "WARNING: Selected Virtual Server $::vs_config__vs have no any pool attached."
+        }
+
+        # Remove the ssl profile from the original virtual server
+        tmsh_modify "/ltm virtual" "${::vs_config__vs} profiles delete { $serverssl_profile }"
+
+        # Irule creation for routing the data to the ssl virtual server
+        set ::irule_name "/Common/target_ssl_vip"
+        ############################# iRule start here ##################################
+        set ::clone_iRule {
+when RULE_INIT {
+  set ::debug 0
+}
+
+when HTTP_REQUEST {
+    virtual "__VS_NAME__"
+    if { $::debug } {log local0. "got http request on origin vs"}
+}
+        }
+        ############################# iRule ends here ###################################
+        regsub -all "\\\\" $::clone_iRule "\\\\\\\\" ::clone_iRule
+        regsub -all {\$} $::clone_iRule "\\\\$" ::clone_iRule
+        regsub "__VS_NAME__" $::clone_iRule ${::ssl_vs_name} ::clone_iRule
+
+        # Create the irule
+        tmsh_create "/ ltm rule" "${::irule_name} \{ $::clone_iRule \}"
+        # Attache the irule to the Virtual Server
+        tmsh_modify "/ ltm virtual" "${::vs_config__vs} { rules { ${::irule_name} } }"
+    }
+
+    # Set serverside clone
+    tmsh_modify "/ ltm virtual" "${::vs_config__vs} clone-pools replace-all-with {$::spdt_pool_name { context serverside }}"
+}
+
+spdt_config
+}
+    			macro {}
+    			presentation{section spdt_instance {
+    string addr display "xlarge" required validator "IpAddress"
+    string pool_name display "xlarge" required default "SPDT_Pool"
+    choice health_check default "No" display "xlarge" {"Yes", "No"}
+}
+
+section vs_config {
+    choice vs display "xxlarge" tcl {
+        package require iapp 1.3.0
+        set ::choices "[iapp::get_items ltm virtual]"
+        return [iapp::safe_display ::choices]
+    }
+}
+
+text {
+    # ===========================================================
+    # =============== pool config Section =======================
+    # ===========================================================
+    spdt_instance "SPDT pool member configuration"
+    spdt_instance.addr "SPDT's traffic mirroring interface IP"
+    spdt_instance.pool_name "SPDT Pool name"
+    spdt_instance.health_check "Add ICMP Health Check"
+
+    # ===========================================================
+    # =============== vs config Section =======================
+    # ===========================================================
+    vs_config "Virtual Server Configuration"
+    vs_config.vs "Application Virtual Server to mirror traffic to SPDT"
+}
+}
+    			role-acl none
+    			run-as none
+    		}
+    	}
+    	description none
+    	ignore-verification false
+    	requires-bigip-version-max none
+    	requires-bigip-version-min none
+    	requires-modules none
+    	signing-key none
+    	tmpl-checksum none
+    	tmpl-signature none
+    }

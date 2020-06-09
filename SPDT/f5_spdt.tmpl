@@ -141,7 +141,11 @@ when HTTP_REQUEST {
 spdt_config
 }
     			macro {}
-    			presentation{section spdt_instance {
+    			presentation{section topic {
+    message version "1.0.0"
+}
+
+section spdt_instance {
     string addr display "xlarge" required validator "IpOrFqdn"
     string pool_name display "xlarge" required default "SPDT_Pool"
     choice health_check default "No" display "xlarge" {"Yes", "No"}
@@ -156,6 +160,13 @@ section vs_config {
 }
 
 text {
+
+    # ===========================================================
+    # =============== topic Section =============================
+    # ===========================================================
+    topic "Shape SPDT iApp Template"
+    topic.version "Template Version:"
+
     # ===========================================================
     # =============== pool config Section =======================
     # ===========================================================

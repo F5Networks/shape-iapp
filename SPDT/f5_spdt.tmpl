@@ -6,15 +6,22 @@
     sys application template /Common/F5_spdt {
     	actions {
     		definition {
-    			html-help {<h6>SPDT pool member configuration</h6>
+    			html-help {<h6>SPDT Pool Configuration</h6>
 <p><b>Note:</b> Before configuring the SPDT instance as a pool member, ensure that the SPDT instance is up and running.
 <ul>
     <li><b>SPDT's traffic mirroring interface IP:</b> Enter the traffic mirroring interface IP of your SPDT (a wildcard IP cannot be used).</li>
+    <li><b>SPDT Pool name:</b> Enter the SPDT pool name that you want the virtual server to use, or use the default SPDT_Pool.</li>
     <li><b>Add ICMP Health Check:</b> Choose whether or not to perform the ICMP Health Check for pool members. The ICMP Health Check is performed in intervals of 45 seconds.</li>
 </ul>
 <h6>Virtual Server Configuration</h6>
 <ul>
     <li><b>Application Virtual Server to mirror traffic to SPDT:</b> Select the virtual server of your application. Once the virtual server is selected, all traffic that goes through this virtual server mirrors to the SPDT system.</li>
+</ul>
+<h6>Advanced Options</h6>
+<ul>
+    <li><b>Show advanced options:</b> Select whether you wish to see advanced options or not.</li>
+    <li><b>Encrypting Virtual Server IP:</b> This IP is used for internal routing when the virtual server is configured with a server-side SSL profile. This must be a none-routable IP.</li>
+    <li><b>Rewrite XFF header with Connecting IP:</b> Select Yes to add an XFF header to requests.</li>
 </ul>
 </p>
 }
@@ -38,9 +45,26 @@ proc detach_monitor {} {
     if {$pool != ""} { tmsh_modify "/ltm pool" "$pool monitor none" }
 }
 
-proc detach_irule {} {
-    set vs [iapp::get_items -norecursive  -dir / -nocomplain ltm virtual $::vs_config__vs]
-    if {$vs != ""} { tmsh_modify "/ltm virtual" "$vs rules none" }
+proc detach_irule {vs_name} {
+    if {$vs_name != ""} { tmsh_modify "/ltm virtual" "$vs_name rules none" }
+}
+
+proc init {} {
+    # Remove all Iapp components before reconfigured
+    foreach {vs} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs]
+        tmsh_modify "/ ltm virtual" "$vs_name clone-pools delete { $::spdt_pool_name }"
+        catch {
+            set rules_list [tmsh::get_field_value $vs rules]
+            set idx [lsearch -exact $rules_list $::irule_name]
+            if {$idx >= 0} {
+                set rules_list [lreplace $rules_list $idx $idx]
+                # Remove the Iapp irule from the VS
+                detach_irule $vs_name
+                tmsh_modify "/ ltm virtual" "$vs_name rules { $rules_list }"
+            }
+        }
+    }
 }
 
 proc spdt_config {} {
@@ -56,10 +80,15 @@ proc spdt_config {} {
     set ::irule_name "/Common/target_ssl_vip" 
     set serverssl_profile ""
     set app_pool ""
+    set snat_type "none"
+
+    # Init the template
+    init
     
     # We backup the customer irules in case we need to add an irule
     set customer_irules ""
     set vs_obj [lindex [tmsh::get_config /ltm virtual ${::vs_config__vs}] 0]
+    catch { set snat_type [tmsh::get_field_value $vs_obj source-address-translation.type] }
     # If customer has irules configured, we want to backup them for later
     catch {
         foreach {irule} [tmsh::get_field_value $vs_obj rules] {
@@ -67,9 +96,6 @@ proc spdt_config {} {
             if {$irule != $::irule_name} { append customer_irules $irule " " }
         }
     }
-
-    # Need to detach irules from VS in case customer uses reconfigure
-    detach_irule
 
     # If customer choose to use ICMP Health Check, we also add icmp-gateway health check with ::icmp_timeout and ::icmp_interval
     if { $::spdt_health == "Yes" } {
@@ -83,7 +109,6 @@ proc spdt_config {} {
     }
 
     # Check if the Virtual Server contain serverssl profile.
-    
     foreach {profile} [tmsh::get_field_value $vs_obj profiles] {
         if {[string first "serverssl" $profile] != -1} {
             # split the profile by WS. 
@@ -94,20 +119,6 @@ proc spdt_config {} {
         }
     }
 
-    # If a server ssl profile attached to the virtual server, the iApp will split the virtual server into two virtual servers.
-    # The origin virtual server will decrypt the request, clone it (server clone) and route the request to the second virtual server.
-    # The new virtual server will encrypt the request with ssl and will route to the origin pool.
-    if {$serverssl_profile != ""} {
-        set ::ssl_vs_port 80
-        # Set dumy address for the ssl virtual server since the request route via iRule and it is internal usage only
-        set ::ssl_vs_dumy_addr "10.10.10.10"
-        set ::ssl_vs_name "$::vs_config__vs\_ssl_vip"
-        # get the pool name so we can set it in the new VS
-        if {[tmsh::get_field_value $vs_obj pool app_pool]} {
-            tmsh_create "/ ltm virtual" "$::ssl_vs_name {description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${::ssl_vs_dumy_addr}:$::ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type automap } pool $app_pool }"            
-        } else {
-            puts "WARNING: Selected Virtual Server $::vs_config__vs has no pool attached."
-        }
         ############################# iRule start here ##################################
         set ::clone_iRule {
 when RULE_INIT {
@@ -115,27 +126,69 @@ when RULE_INIT {
 }
 
 when HTTP_REQUEST {
-    SSL::disable serverside
-    virtual "__VS_NAME__"
-    if { $::debug } {log local0. "got http request on origin vs"}
-}
+    # Set 'Rewrite XFF header with Connecting IP' variable (1 - will Insert XFF)
+    set xff __XFF__
 
-        }
-        ############################# iRule ends here ###################################
-        regsub -all "\\\\" $::clone_iRule "\\\\\\\\" ::clone_iRule
-        regsub -all {\$} $::clone_iRule "\\\\$" ::clone_iRule
-        regsub "__VS_NAME__" $::clone_iRule ${::ssl_vs_name} ::clone_iRule
-
-        # Create the irule
-        tmsh_create "/ ltm rule" "${::irule_name} \{ $::clone_iRule \}"
-
-        # Add the iRule to the customer iRules
-        append customer_irules " " $::irule_name
-
+    # Insert XFF header
+    if { $xff } {
+        HTTP::header insert X-Forwarded-For [IP::client_addr]
     }
 
+    __ROUTE_TRAFFIC__
+}
+        }
+        ############################# iRule ends here ###################################    
+
+    # Insert XFF to iRule if requested
+    if {$::advanced__xff == "Yes"} {
+        regsub __XFF__ $::clone_iRule 1 ::clone_iRule
+    } else {
+        regsub __XFF__ $::clone_iRule 0 ::clone_iRule
+    }
+
+    # If a server ssl profile attached to the virtual server, the iApp will split the virtual server into two virtual servers.
+    # The origin virtual server will decrypt the request, clone it (server clone) and route the request to the second virtual server.
+    # The new virtual server will encrypt the request with ssl and will route to the origin pool.
+    if {$serverssl_profile != ""} {
+        set ::ssl_vs_port 80
+        # Set dumy address for the ssl virtual server since the request route via iRule and it is internal usage only
+        set ::ssl_vs_dumy_addr $::advanced__vip2vip_ip
+        set ::ssl_vs_name "$::vs_config__vs\_ssl_vip"
+        # get the pool name so we can set it in the new VS
+        if {[tmsh::get_field_value $vs_obj pool app_pool]} {
+            # 'snat' type requires snat pool so need to differentiate from other cases
+            if {$snat_type != "snat"} {
+                tmsh_create "/ ltm virtual" "$::ssl_vs_name description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${::ssl_vs_dumy_addr}:$::ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type $snat_type } pool $app_pool"            
+            } else {
+                set snat_pool [tmsh::get_field_value $vs_obj source-address-translation.pool]
+                tmsh_create "/ ltm virtual" "$::ssl_vs_name description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${::ssl_vs_dumy_addr}:$::ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type $snat_type pool $snat_pool } pool $app_pool"            
+            }
+        } else {
+            puts "WARNING: Selected Virtual Server $::vs_config__vs has no pool attached."
+        }
+        # ====== route traffic for re-encryption in a backend VIP ==================
+        set route_traffic {
+    SSL::disable serverside
+    virtual __VS_NAME__
+    if { $::debug } {log local0. "got http request on origin vs"}
+        }
+        # ===================================================================
+
+        regsub __ROUTE_TRAFFIC__ $::clone_iRule $route_traffic ::clone_iRule
+        regsub __VS_NAME__ $::clone_iRule ${::ssl_vs_name} ::clone_iRule
+    } else {
+        regsub __ROUTE_TRAFFIC__ $::clone_iRule "" ::clone_iRule
+    }
+
+    regsub -all "\\\\" $::clone_iRule "\\\\\\\\" ::clone_iRule
+    regsub -all {\$} $::clone_iRule "\\\\$" ::clone_iRule
+
+    # Create the irule
+    tmsh_create "/ ltm rule" "${::irule_name} \{ $::clone_iRule \}"
+    # Add the iRule to the customer iRules
+    append customer_irules " " $::irule_name
     # Set serverside clone and attach iRules
-    tmsh_modify "/ ltm virtual" "${::vs_config__vs} rules { $customer_irules } clone-pools replace-all-with {$::spdt_pool_name { context serverside }}"
+    tmsh_modify "/ ltm virtual" "${::vs_config__vs} profiles add { http } rules { $customer_irules } clone-pools replace-all-with {$::spdt_pool_name { context serverside }}"
 }
 
 spdt_config
@@ -152,6 +205,7 @@ section spdt_instance {
 }
 
 section vs_config {
+    message note "If an HTTP profile is not attached to the virtual server you select here, the iApp will attach it automatically."
     choice vs display "xxlarge" tcl {
         package require iapp 1.3.0
         set ::choices "[iapp::get_items ltm virtual]"
@@ -159,8 +213,15 @@ section vs_config {
     }
 }
 
-text {
+section advanced {
+    choice show_advanced default "No" display "xlarge" {"Yes", "No"}
+    optional (show_advanced == "Yes") {
+        string vip2vip_ip display "xlarge" validator "IpOrFqdn" default "1.2.3.4"
+        choice xff default "Yes" display "xlarge" {"Yes", "No"}
+    }
+}
 
+text {
     # ===========================================================
     # =============== topic Section =============================
     # ===========================================================
@@ -170,16 +231,25 @@ text {
     # ===========================================================
     # =============== pool config Section =======================
     # ===========================================================
-    spdt_instance "SPDT pool member configuration"
+    spdt_instance "SPDT Pool Configuration"
     spdt_instance.addr "SPDT's traffic mirroring interface IP"
     spdt_instance.pool_name "SPDT Pool name"
     spdt_instance.health_check "Add ICMP Health Check"
 
     # ===========================================================
-    # =============== vs config Section =======================
+    # =============== vs config Section =========================
     # ===========================================================
     vs_config "Virtual Server Configuration"
+    vs_config.note "Note"
     vs_config.vs "Application Virtual Server to mirror traffic to SPDT"
+
+    # ===========================================================
+    # =============== Advanced Section ==========================
+    # ===========================================================
+    advanced "Advanced Options"
+    advanced.show_advanced "Show advanced options"
+    advanced.vip2vip_ip "Encrypting Virtual Server IP"
+    advanced.xff "Rewrite XFF header with Connecting IP"
 }
 }
     			role-acl none

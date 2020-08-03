@@ -1,6 +1,8 @@
 # Introduction
 
-This iApp is designed to provide automatic integration between BIGIP and SSE.
+This iApp is designed to provide automatic integration between the F5 BIG-IP system and the SSE.
+
+BIG-IP system administrators must perform the iApp configuration in consultation with a qualified SSE system administrator, and not attempt to perform this configuration alone
 
 ## Deployment Steps
 

@@ -7,50 +7,61 @@
     	actions {
     		definition {
     			html-help {
-<p><b>SED Template</b></p>
-<p>This template creates a complete configuration optimized for SED application </p>
+<p><b>SSE INLINE iApp Template</b></p>
+<p>This template creates a complete configuration optimized for the SED application</p>
 <ul>
-  <li>Before you can configure the BIG-IP to work with SED application, Make sure you have SED cluster up and running</li>
-  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see https://github.com/F5Networks/shape-iapp/blob/sse-inline-v1.0.0/SSE/SSE-Inline/Deploy%20SSE%20iApp%20Template%20in%20BIG-IP%2C%20ver.%201.0.0.pdf</li>
+  <li>Before you can configure the BIG-IP to work with SED application, ensure that the SED cluster up and running.</li>
+  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/sse-inline-v1.1.0/SSE/SSE-Inline/Deploy%20SSE%20Inline%20iApp%20Template%20in%20BIG-IP%2C%20v1.1.0.pdf</b></li>
 </ul>
 
-<h6>SSE Inline Configuration</h6>
+
 <p>
-<h6>JavaScript Injection Configuration</h6>
+<h6>General</h6>
 <ul> 
-    <li><b>Shape JS Injection:</b> Enabled by default. If this setting is disabled, the Shape Security Solution cannot be implemented on your iApp.</li>
+    <li><b>Clean Before Deletion:</b> Set to Yes to permanently delete the iApp. To complete deletion, click Finished and then delete the iApp from the iApp list at iApps>Application Services>Applications.</li>
+    <li><b>Activate Kill-Switch:</b> Set to Yes to disable, but not permanently delete the iApp. When the iApp is disabled, HTTP requests are sent to the web application’s server directly without any intervention from Shape.</li>
+</ul>
+
+<h6>JavaScript Injection Configuration</h6>
+<ul>
+    <li><b>BIG-IP Handles JS Injections:</b> Choose whether you want the BIG-IP to inject script tags or you want to do it manually.</li>
     <li><b>Shape JS URL or Path:</b> Enter the path you received from F5 support for the Shape JS injection.</li>
     <li><b>Location for Shape JS Injection:</b> From the drop-down list, select a location in the HTML code of your webpage for the Shape JS Injection.</li>
-    <li><b>Async JS Injection:</b> When enabled, the BIG-IP injects Async JS in the HTML code of your webpage.</li>
-    <li><b>Inject Telemetry JS in <Body> tag:</b> Select Yes to inject the Async JS in the <body> tag in the HTML code of your webpage.Note: If No is selected, the Async JS is injected in the same location as the Shape JS. </li>
-    <li><b>Inject Shape JS in specific webpages only:</b> Select Yes if you want to inject the Shape JS (and Async JS if enabled) in specific webpages of your web application. Select No to inject the Shape JS (and Async JS if enabled) in all webpages of your web application.</li>
-    <li><b>Entry Page Paths:</b> If you set Inject Shape JS in specific webpages only = Yes, enter here the paths of the webpages in your application to receive the Shape JS (and Async JS if enabled) injections. </li>
+    <li><b>Telemetry JS Injection:</b> When enabled, the BIG-IP injects Telemetry JS in the HTML code of your webpage.</li>
+    <li><b>Inject Telemetry JS in Body Tag:</b> Select Yes to inject the Telemetry JS in the body tag in the HTML code of your webpage. Note: If No is selected, the Telemetry JS is injected in the same location as the Shape JS.</li>
+    <li><b>Inject Shape JS in Specific Webpages Only:</b> Select Yes if you want to inject the Shape JS in specific webpages of your web application. Select No to inject the Shape JS in all webpages of your web application.</li>
+    <li><b>JS Injection Paths:</b> If you set Inject Shape JS in specific webpages only = Yes, enter here the paths of the webpages in your application to receive the Shape JS injections.</li>
+    <li><b>Exclude Shape JS Injection from Specific Webpages:</b> Select Yes if you want to exclude the Shape JS from specific webpages in your web application.</li>
+    <li><b>JS Excluded Paths:</b> If you set Exclude Shape JS injection from specific webpages = Yes, enter here the paths of the webpages in your application where the Shape JS injections should be excluded.</li>
 </ul>
 <h6>Endpoints Configuration</h6>
 <ul>
-    <li><b>Paths to be routed to Shape Security:</b> Use these settings to configure which sites will be protected by SSE. </li>
-    <li><b>Endpoint:</b> Enter here the path to the site you want to be protected by SSE. Note: The path must be lowercase letters only and start with ‘/’. </li>
-    <li><b>ANY:</b> Set this to Yes if you want the path to be protected with any type of method (i.e., GET, POST, or PUT). Set it to No if you want to limit protection to only a certain method(s). </li>
-    <li><b>GET, POST, PUT:</b> Set Yes if you want the path protected when it has the selected method </li>
+    <li><b>Endpoint:</b> Enter here the path to the web page you want to be protected by SSE. Note: The endpoint must be lowercase letters only and start with ‘/’.</li>
+    <li><b>ANY:</b> Set this to Yes if you want the path to be protected with any type of method (i.e., GET, POST, or PUT). Set it to No if you want to limit protection to only a certain method(s).</li>
+    <li><b>GET, POST, PUT:</b> Set Yes if you want the path protected when it has the selected method.</li>
 </ul>
 <h6>Pool Configuration</h6>
 <ul>
-    <li><b>Shape outbound IPs:</b> Enter here the IPs of the SSE cluster that are used to send request to the BIG-IP. These IPs should be provided to you from F5 support.Note: Enter here only valid IPs or IPs with a subnet range. If you enter an invalid IP, an error message will appear in the BIG-IP when you click Finished.  </li>
-    <li><b>Traffic routing methodology:</b> Select whether you want the iApp pool to be routed according to the Active/Active method or the Active/Passive method. </li>
-    <li><b>Shape protection pool:</b> Add here the IP or FQDN for every pool member of the SSE cluster. If you chose the Active/Passive routing method, you also need to assign a priority group number for the pool member. </li>
-    <li><b>Add HTTP Health Check:</b> Choose whether to perform the HTTP Health Check on pool members. The HTTP Health Check is performed in intervals of 5 seconds.</li>
+    <li><b>Shape Outbound IPs:</b> Enter here the IPs of the SSE cluster that are used to send request to the BIG-IP. These IPs should be provided to you from F5 support.Note: Enter here only valid IPs or IPs with a subnet range. If you enter an invalid IP, an error message will appear in the BIG-IP when you click Finished.  </li>
+    <li><b>Traffic Routing Methodology:</b> Select whether you want the iApp pool to be routed according to the Active/Active method or the Active/Passive method.</li>
+    <li><b>Cookie Persistence for Shape Protection Pool:</b> Select Enable if, after initial load‑balancing, you want HTTP requests of the same session always sent to the same pool member in the Shape Protection Pool. Select Disable if you want the BIG-IP to perform standard load balancing.</li>
+    <li><b>Shape Protection Pool:</b> Add here the IP or FQDN for every pool member of the cluster. If you chose the Active/Passive routing method, you also need to assign a priority group number for the pool member, where a lower number means higher priority. </li>
+    <li><b>Add HTTP Health Check:</b> Choose whether to perform the HTTP Health Check on the entire pool. The HTTP Health Check is performed in intervals of 5 seconds.</li>
 </ul>
 <h6>Virtual Server Configuration</h6>
 <ul>
-    <li><b>Application’s virtual server(s) to protect:</b> Select the virtual server(s) that your iApp runs on. </li>
+    <li><b>Application’s Virtual Server(s) to Protect:</b> Select your web application's virtual server(s). Selecting at least one virtual server is mandatory.</li>
 </ul>
 <h6>Advanced Features Configuration</h6>
 <ul>
-    <li><b>Rewrite XFF header with Connecting IP:</b> Select Yes to add an XFF header to requests.  </li>
-    <li><b>Add different server SSL profile for Shape pool:</b> If you want to a use SSL profile(s) that are different from what the application pool uses, select them here.  </li>
-    <li><b>Encrypting Virtual Server IP:</b> A default IP is assigned. If you have a virtual server already configured to this IP, assign a different IP here. </li>
+    <li><b>Rewrite XFF Header with Connecting IP:</b> Select Yes to add an XFF header to requests.</li>
+    <li><b>Add Server-Side SSL Profile for Shape Pool:</b> If you want to use an SSL profile that is different from what the application pool uses, select it here.</li>
+    <li><b>Encrypting Virtual Server IP:</b> A default IP is assigned. If you have a virtual server already configured to this IP, assign a different IP here.</li>
 </ul>
 </p>
+
+
+
 
 }
     			implementation {
@@ -59,22 +70,23 @@ tmsh::log_level crit
 tmsh::include "f5.app_utils"
 
 puts "======================== $tmsh::app_name LOG ============================="
-
-#********************* Global Variables **************************************
+#********************* Global Variables ***********************
 set ::iapp_name "/Common/$tmsh::app_name"
+set ::sse_irule_name "$::iapp_name\_Shape_iRule"
 set ::html_js_rule_name "$::iapp_name\_ShapeJSRule"
 set ::html_iojs_rule_name "$::iapp_name\_ShapeIOJSRule"
 set ::shape_inject_html_profile_name "$::iapp_name\_ShapeJsHtml"
 set ::iapp_oneconnect "$::iapp_name\_oneconnect"
 set ::html_before_script_rule "$::iapp_name\_prepened_script"
-
+set ::persist_cookie_name "$::iapp_name\_persist_cookie"
+set ::sni_profile_name "$::iapp_name\_serverssl"
 
 # html tag match irule event. This section will insert to the iRule if needed.
 set ::html_tag_matched_irule {
 # This event is relevant only when js injection required location is before script tag.
 when HTML_TAG_MATCHED {
     if { ![info exists is_js_injected] } {
-        if { $static::shape_debug }{log local0. "prepened JS before [HTML::tag name] tag"}
+        if { $shape_debug }{log local0. "prepend JS before [HTML::tag name] tag"}
         HTML::tag prepend __SNIPPET__
         set is_js_injected 1
     }
@@ -87,182 +99,203 @@ set ::shape_sed_irule	{
 # Set the lowest priority to not disturb the Customer iRules
 priority 1000
 
-proc route_shape_traffic {} {
-    if { $static::use_different_ssl } {
+proc route_shape_traffic {use_different_ssl shape_pool shape_debug} {
+     # This variable used when customer choose to use different ssl for shape pools
+    set shape_ssl_vs_name  __SHAPE_SSL_VS_NAME__
+    if { $use_different_ssl } {
         # In case a different ssl is required for SSE pool, disable SSL on serverside to pass data to the encrypting VS
         __DISABLE_SSL__
-        virtual $static::shape_service_vs
-        if { $static::shape_debug }{ log local0. "successfully routed to $static::shape_service_vs" }
+        virtual $shape_ssl_vs_name
+        if { $shape_debug }{ log local0. "successfully routed to $shape_ssl_vs_name" }
     } else {
-        pool $static::shape_service_pool
+        __SHAPE_COOKIE_PERSIST__
+        pool $shape_pool
     }
 }
 
-# Route protected endpoint requests to SSE. if there are no available pool members, route directly to application's default pool.
-proc route_shape_endpoints {} {
-    if { $static::shape_debug }{ log local0. "found request with Shape Endpoints URI" }
+proc route_to_application {pool} {
+    pool ${pool}
+}
+
+proc request_js {use_different_ssl shape_pool kill_switch shape_debug} {
+    # If request is for Shape JS or telemetry request, route it to Shape
+    if { $shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: Got JS request: [HTTP::path]" }
 
     # Test if the pool has active members before sending traffic
-    if  { [active_members $static::shape_service_pool] >= 1 } {
-        if { $static::shape_debug }{ log local0. "[IP::client_addr][TCP::client_port]: Shape request sent to shapeshifter [HTTP::uri -normalized]"}
+    if  { [active_members ${shape_pool}] >= 1 && $kill_switch == 0 } {
         snat automap
-        call route_shape_traffic
+        call route_shape_traffic $use_different_ssl ${shape_pool} $shape_debug
+        return 0
     } else {
-        # If the ShapeShifter pool is not available, send traffic to the default pool
-        if { $static::shape_debug }{ log local0. "[IP::client_addr][TCP::client_port]: found Shape request, but $static::shape_service_pool pool down! Sent to default pool [HTTP::uri -normalized]"}
-            HTML::disable
-            pool $static::shape_web_pool
+        # If the ShapeShifter pool is not available, then no need to forward this to origin, send back an empty 200 OK
+        # Can also put an empty file at Origin for the Shape js request for occasions when the iRule is disabled.
+        if { $shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: ShapeJS URI, but ${shape_pool} pool is down or Kill Switch is active!!! Sent HTTP 200 response"}
+        HTTP::respond 200 noserver Cache-Control "no-cache"
+        return 1
     }
 }
 
-when HTTP_REQUEST {
-    # ========= Init conection variables ==========
+proc should_send_to_sse {anyurl posturl geturl puturl} {
+    set anyurl_names ""
+    set posturl_names ""
+    set geturl_names ""
+    set puturl_names ""
+
+    if {[class exists ${anyurl}]} { set anyurl_names [class names ${anyurl}] }
+    if {[class exists ${posturl}]} { set posturl_names [class names ${posturl}] }
+    if {[class exists ${geturl}]} { set geturl_names [class names ${geturl}] }
+    if {[class exists ${puturl}]} { set puturl_names [class names ${puturl}] }
+
+    #ANY
+    foreach {endpoint} $anyurl_names {
+        if {[string tolower [HTTP::path -normalized]] matches_glob $endpoint} {
+            return true
+        }
+    }
+
+    if { [HTTP::method] eq "POST" } {
+        foreach {endpoint} $posturl_names {
+            if {[string tolower [HTTP::path -normalized]] matches_glob $endpoint} {
+                return true
+            }
+        }
+    }
+    if { [HTTP::method] eq "GET" } {
+        foreach {endpoint} $geturl_names {
+            if {[string tolower [HTTP::path -normalized]] matches_glob $endpoint} {
+                return true
+            }
+        }
+    }
+    if { [HTTP::method] eq "PUT" } {
+        foreach {endpoint} $puturl_names {
+            if {[string tolower [HTTP::path -normalized]] matches_glob $endpoint} {
+                return true
+            }
+        }
+    }
+    if { [HTTP::method] eq "OPTIONS" } {
+        lappend dg_list $posturl_names $geturl_names $puturl_names
+        foreach {endpoint} $dg_list {
+            if {[string tolower [HTTP::path -normalized]] matches_glob $endpoint} {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+when SERVER_CONNECTED {
+    # Disable SSL serverside profile for SSL offload use cases
+    if {[LB::server port] == 80 } {
+        __DISABLE_SSL__
+    }
+}
+
+when CLIENT_ACCEPTED {
     # Log debug messages (1=yes, 0=no)
     # Set to 0 when not debugging this iRule
-    set static::shape_debug 0
+    set shape_debug 0
 
-    # Webserver pool
-    set static::shape_web_pool __APP_POOL__
-
-    # Shape pool
-    set static::shape_service_pool __SHAPE_SSE_POOL__
-
-    # Shape VS
-    set static::shape_service_vs  __SSE_VS_NAME__
-
-    # List of IP addresses from where Shape Security will source protected content
-    set static::shape_ip_dg __OUTBOUNDS_IPS_DG__
-
-    # Shape header - Indicate that the request came from SSE cluster.
-    set static::shape_header "SHAPE-HEADER"
+    #Datagroup names per HTTP Method
+    set geturl __GET_EP_DG__
+    set posturl __POST_EP_DG__
+    set puturl __PUT_EP_DG__
+    set anyurl __ANY_EP_DG__
+    set JS_DG __JS_DG__
+    # Entry points that should be injected with JS
+    set included_entry_points __INCLUDED_ENTRY_POINTS_DG__
+    # Inject JS to specific path
+    set inject_specific_path __JS_SPECIFIC_PATH__
+    # Entry points that should be excluded from JS injection
+    set excluded_entry_points __EXCLUDED_ENTRY_POINTS_DG__
+    # Exclude JS Injection from specific paths
+    set inject_exclude_path __JS_EXCLUDED_PATH__
+    # Set 'Rewrite XFF header with Connecting IP' variable
+    set rewrite_xff __XFF__
 
     # Set 'Add different server SSL profile for Shape pool' variable
     # If true then we split traffic into 2 different VS (client<->bip<->ws, bip<->sse)
-    set static::use_different_ssl __USE_DIFFERENT_SSL__
+    set use_different_ssl __USE_DIFFERENT_SSL__
+    # SSE pool for JS routing
+    set shape_pool __SHAPE_SSE_POOL__
+    # Kill switch/bypass of Shape API (1=yes, 0=no)
+    set kill_switch __KILL_SWITCH__
 
+    # Shape header - Indicate that the request came from SSE cluster.
+    set shape_header "SHAPE-HEADER"
     # Indicate Shape Interstitial response
-    set static::shape_interstitial_header "ISTL-RESPONSE"
+    set shape_interstitial_header "ISTL-RESPONSE"
 
-    # Entry points that should be injected with JS
-    set static::entry_points __ENTRY_POINTS_DG__
+    # List of IP addresses from where Shape Security will source protected content
+    set shape_ip_dg __OUTBOUNDS_IPS_DG__
+}
 
-    # Route requests with any kinf of HTTP methud to Shape SSE
-    set any_bool false
+when HTTP_REQUEST {
 
     # bypass the injection if needed (HTML::disable)
     set bypass 0
 
-    # Inject JS to specific path
-    set inject_spesific_path __JS_SPESIFIC_PATH__
-
-    # Set 'Rewrite XFF header with Connecting IP' variable
-    set static::xff __XFF__
-
+    # JavaScript path
     set js_path __JS_PATH__
-    # =================== End =====================
+    
+    #Save the name of virtual's default pool
+    set app_pool [LB::server pool]
+    __APP_PERSIST_NONE__
+    if { $kill_switch } {
+        if { $shape_debug }{ log local0. "Kill switch activated, suspending processing."}
+        HTML::disable
+        return
+    }
+    # Disable the HTML if injection configured to specific pages
+    set normalized_path [string tolower [HTTP::path -normalized]]
+    if { $inject_specific_path } {
+        HTML::disable
+        foreach {endpoint} [class names $included_entry_points] {
+            if { $normalized_path matches_glob $endpoint } {
+                HTML::enable
+            }
+        }
+    }
+    if { $inject_exclude_path } {
+        foreach {endpoint} [class names $excluded_entry_points] {
+            if { $normalized_path matches_glob $endpoint } {
+              HTML::disable
+            }
+        }
+    }
 
     # If this client IP is one of Shape outbound IPs and where the supplied shape custom header name is present
     # NOTE: Replace CustomHeader with the header name supplied by your Shape technical account manager
     #   this is a return flow from Shape and it needs to go to Origin server pool
-    if { ([class match [IP::client_addr] equals $static::shape_ip_dg] and [HTTP::header exists ${static::shape_header}]) } {
+    if { ([class match [IP::client_addr] equals $shape_ip_dg] and [HTTP::header exists ${shape_header}]) } {
 
-        if { $static::shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: got request from SSE cluster --> Bypass request:\n [HTTP::request]" }
+        if { $shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: got request from SSE cluster --> Bypass request:\n [HTTP::request]" }
         # Do not inject JS
         HTML::disable
         set bypass 1
         # Disable ASM if it's enabled. Use catch to handle error if ASM is not enabled on the virtual server
         set asm_disable_cmd "catch {ASM::disable}"
         eval $asm_disable_cmd
+        call route_to_application ${app_pool}
 
-        pool $static::shape_web_pool
-
-    } elseif { [class match [string tolower $js_path] equals __JS_DG__] } {
-
+    } elseif { [class exists $JS_DG] && [HTTP::method] eq "GET" && [class match [string tolower $js_path] equals $JS_DG] } {
         # If request is for Shape JS, route it to Shape
-
-        if { $static::shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: Matched ShapeJS datagroup" }
-
-        # Test if the pool has active members before sending traffic
-        if  { [active_members $static::shape_service_pool] >= 1 } {
-            snat automap
-            call route_shape_traffic
-
-        } else {
-            # If the ShapeShifter pool is not available, then no need to forward this to origin, send back an empty 200 OK
-            # Can also put an empty file at Origin for the Shape js request for occasions when the iRule is disabled.
-            if { $static::shape_debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: ShapeJS URI, but $static::shape_service_pool pool down! Sent HTTP 200 response"}
-            HTTP::respond 200
+        if { [call request_js $use_different_ssl $shape_pool $kill_switch $shape_debug] } {
             return
         }
-    } else {
-        if {[class size __ANY_EP_DG__] > 0} {
-            foreach {endpoint} [class names __ANY_EP_DG__] {
-                if {[string tolower [HTTP::uri -normalized]] matches_glob $endpoint } {
-                    set any_bool true
-                    break
-                }
-            }
-        }
-        if { $any_bool } {
-            call route_shape_endpoints
-        } elseif { [HTTP::method] equals "POST" } {
-             foreach {endpoint} [class names __POST_EP_DG__] {
-                 if {[string tolower [HTTP::uri -normalized]] matches_glob $endpoint } {
-                    call route_shape_endpoints
-                    break
-                 }
-             }
-        } elseif { [HTTP::method] equals "GET" } {
-            foreach {endpoint} [class names __GET_EP_DG__] {
-                if {[string tolower [HTTP::uri -normalized]] matches_glob $endpoint } {
-                    call route_shape_endpoints
-                    break
-                }
-            }
-        } elseif { [HTTP::method] equals "PUT" } {
-            foreach {endpoint} [class names __PUT_EP_DG__] {
-                if {[string tolower [HTTP::uri -normalized]] matches_glob $endpoint } {
-                    call route_shape_endpoints
-                    break
-                }
-            }
-        }
-        # We pass all OPTIONS requests for configured endpoints to Shape
-        if { [HTTP::method] equals "OPTIONS" } {
-            set found false
-            lappend dg_list __POST_EP_DG__ __GET_EP_DG__ __PUT_EP_DG__
-            foreach {method_ep} $dg_list {
-                foreach {endpoint} [class names $method_ep] {
-                    if {[string tolower [HTTP::uri -normalized]] matches_glob $endpoint} {
-                        set found true
-                        call route_shape_endpoints
-                        break
-                    }
-                }
-                if { $found } {
-                    break
-                }
-            }
-        }
+
+    } elseif { [call should_send_to_sse $anyurl $posturl $geturl $puturl] } {
+        call route_shape_traffic $use_different_ssl $shape_pool $shape_debug
     }
 
     # Insert XFF header
-    if { $static::xff && !$bypass } {
+    if { $rewrite_xff && !$bypass } {
         HTTP::header insert X-Forwarded-For [IP::client_addr]
     }
 
-    # Disable the HTML if injection configured to specific pages
-    if { $inject_spesific_path && ![class match [string tolower [HTTP::path -normalized]] equals $static::entry_points]} {
-        HTML::disable
-    }
 }
 __HTML_TAG_MATCHED__
-when SERVER_CONNECTED {
-    # Disable SSL serverside profile for SSL offload use cases
-    if {[LB::server port] != 443 } {
-        __DISABLE_SSL__
-    }
-}
 
 when HTTP_RESPONSE {
 
@@ -272,10 +305,11 @@ when HTTP_RESPONSE {
     }
 
     # Do not inject javascript for Shape interstitials
-    if { [HTTP::header exists $static::shape_interstitial_header] || ([info exists bypass] && $bypass)} {
+    if { [HTTP::header exists $shape_interstitial_header] || ([info exists bypass] && $bypass)} {
         HTML::disable
     }
 }
+
 }
 ######## SHAPE SSE iRule END ########
 #####################################
@@ -295,11 +329,15 @@ proc tmsh_modify { component arguments } {
 }
 
 # Search on given vs for profile from given type
-proc find_profile {vs_obj type} {
+proc find_profile {vs_obj type sub_type} {
     set found false
+    set fomated_type $type
+
+    if { $type == "profile" } {set fomated_type "profiles"}
+
     catch {
-        foreach {profile} [tmsh::get_config /ltm profile $type] {
-            foreach {vs_profile} [tmsh::get_field_value $vs_obj profiles] {
+        foreach {profile} [tmsh::get_config /ltm $type $sub_type] {
+            foreach {vs_profile} [tmsh::get_field_value $vs_obj $fomated_type] {
                 if {[lindex $vs_profile 1] == [lindex $profile 3]} {
                     set found true
                     return [lindex $vs_profile 1]
@@ -317,7 +355,7 @@ proc set_sse_vs {vs_obj} {
     set serverssl_profile $::advanced_features__serverssl
     if {$serverssl_profile != ""} {
         set sse_vs_port 443
-        # Set dumy address for the ssl virtual server since the request route via iRule and it is internal usage only
+        # Set dummy address for the ssl virtual server since the request route via iRule and it is internal usage only
         set sse_vs_dumy_addr $::advanced_features__vip2vip_ip
         set sse_vs_pool $::shape_sse_pool_name
         set snat_type "none"
@@ -326,24 +364,21 @@ proc set_sse_vs {vs_obj} {
         catch { set snat_type [tmsh::get_field_value $vs_obj source-address-translation.type] }
 
         # Copy http profile
-        set http_profile [find_profile $vs_obj "http"]
+        set http_profile [find_profile $vs_obj "profile" "http"]
 
         # Copy one-connect profile
-        set oneconnect_profile [find_profile $vs_obj "one-connect"]
-        if { $oneconnect_profile == "" } {
-            set oneconnect_profile $::iapp_oneconnect
-        }
-
+        set oneconnect_profile [find_profile $vs_obj "profile" "one-connect"]
+        if { $oneconnect_profile == "" } { set oneconnect_profile $::iapp_oneconnect }
         # create sse vs
-        tmsh_create "/ ltm virtual" "${::sse_vs_name} {description \"SSE Virtual Server\" source 0.0.0.0/0 destination ${sse_vs_dumy_addr}:$sse_vs_port profiles replace-all-with { ${http_profile} ${oneconnect_profile} { context all } $serverssl_profile { context serverside } } pool $sse_vs_pool }"
-
+        tmsh_create "/ ltm virtual" "${::shape_ssl_vs_name} {description \"Server Side SSL VS\" source 0.0.0.0/0 destination ${sse_vs_dumy_addr}:$sse_vs_port profiles replace-all-with { ${http_profile} ${oneconnect_profile} { context all } $serverssl_profile { context serverside } } pool $sse_vs_pool }"
+        # Set default cookie persistence profile if selected
+        if {$::pool__cookie_persistence == "Enable"} {tmsh_modify "/ ltm virtual" "${::shape_ssl_vs_name} persist replace-all-with { cookie }"}
         # 'snat' type requires snat pool so need to differentiate from other cases
         if {$snat_type != "snat"} {
-            tmsh_modify "/ ltm virtual" "${::sse_vs_name} { source-address-translation { type $snat_type } }"
+            tmsh_modify "/ ltm virtual" "${::shape_ssl_vs_name} { source-address-translation { type $snat_type } }"
         } else {
             set snat_pool [tmsh::get_field_value $vs_obj source-address-translation.pool]
-            tmsh_modify "/ ltm virtual" "${::sse_vs_name} { source-address-translation { type $snat_type pool $snat_pool } }"
-
+            tmsh_modify "/ ltm virtual" "${::shape_ssl_vs_name} { source-address-translation { type $snat_type pool $snat_pool } }"
         }
     }
 }
@@ -352,11 +387,11 @@ proc detach_irule {vs_name} {
     if {$vs_name != ""} { tmsh_modify "/ltm virtual" "$vs_name rules none" }
 }
 
-proc should_inject_ssl_disable {vs_obj} {
+proc supports_ssl {vs_obj profile_type} {
     set flag false
     catch {
         foreach {profile} [tmsh::get_field_value $vs_obj profiles] {
-            if {[string first "serverssl" $profile] != -1} {
+            if {[string first ${profile_type} $profile] != -1} {
                 set flag true
             }
         }
@@ -367,7 +402,7 @@ proc should_inject_ssl_disable {vs_obj} {
 # Create HTML rule for JS injection. These rules will attached to the created HTL profile
 proc create_injection_rule {snippet rule_name} {
     if {[get_tag_name $::js_injection__injection_location] == "script"} {
-        # Appened the rule to the HTML profile
+        # Append the rule to the HTML profile
         tmsh_modify "/ ltm profile" "html ${::shape_inject_html_profile_name} rules add { ${::html_before_script_rule} }"
         regsub __SNIPPET__ $::html_tag_matched_irule \{${snippet}\} ::html_tag_matched_irule
         regsub __HTML_TAG_MATCHED__ $::shape_sed_irule ${::html_tag_matched_irule} ::shape_sed_irule
@@ -375,7 +410,7 @@ proc create_injection_rule {snippet rule_name} {
         regsub -all "\"" $snippet "\\\"" snippet
         tmsh::create ltm html-rule [get_tag_location $::js_injection__injection_location] ${rule_name} \{ action \{ text \"$snippet\" \} match \{ tag-name [get_tag_name $::js_injection__injection_location] \} \}
         regsub __HTML_TAG_MATCHED__ $::shape_sed_irule {} ::shape_sed_irule
-        # Appened the rule to the HTML profile
+        # Append the rule to the HTML profile
         tmsh_modify "/ ltm profile" "html ${::shape_inject_html_profile_name} rules add { ${rule_name} }"
     }
 }
@@ -391,157 +426,7 @@ proc detach_html_rules {} {
     }
 }
 
-proc init {} {
-    # Detach all Iapp components before reconfigured
-    foreach {vs} [tmsh::get_config /ltm virtual] {
-        set vs_name [tmsh::get_name $vs]
-        puts "vs name: $vs_name"
-        catch {
-            set rules_list [tmsh::get_field_value $vs rules]
-            set format_vs_name ""
-            regsub -all "/" ${vs_name} "_" format_vs_name
-            set formated_rule_name "$::iapp_name\_Shape_iRule_${format_vs_name}"
-            set idx [lsearch -exact $rules_list $formated_rule_name]
-            if {$idx >= 0} {
-                set rules_list [lreplace $rules_list $idx $idx]
-                detach_irule $vs_name
-                tmsh_modify "/ ltm virtual" "$vs_name rules { $rules_list }"
-            }
-            catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::shape_inject_html_profile_name }" }
-            catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::iapp_oneconnect }" }
-        }
-    }
-    detach_html_rules
-}
-
-proc cleanup {} {
-    init
-    catch {
-        tmsh::delete ltm profile html profile ${::shape_inject_html_profile_name}
-    }
-}
-
-proc config_js_injection {} {
-    set JS_DG "$::iapp_name\_ShapeJs"
-    detach_html_rules
-
-    if {$::js_injection__enable_js_injection == "Enable"} {
-        # By default the injection domain/ip is the SSE cluster
-        set injection_url "$::js_injection__injection_path"
-
-        if {$::js_injection__async_enable == "Enable"} {
-            set ::iojs_snippet "<script type=\"text/javascript\" src=\"$injection_url?cache\"></script>"
-            set ::js_snippet "<script type=\"text/javascript\" src=\"$injection_url?async\" async></script>"
-
-            # Create HTML Rule for injecting the Shape JavaScript snippet
-            if {$::js_injection__inject_telemetryjs_in_body == "Yes"} {
-                tmsh_create "/ ltm html-rule" "tag-append-html ${::html_js_rule_name} { action { text \"$::js_snippet\" } match { tag-name body } }"
-                create_injection_rule $::iojs_snippet $::html_iojs_rule_name
-                # Appened the rule to the HTML profile
-                tmsh_modify "/ ltm profile" "html ${::shape_inject_html_profile_name} rules add { ${::html_js_rule_name} }"
-            } else {
-                set js_snippet "$::iojs_snippet$::js_snippet"
-                create_injection_rule $js_snippet $::html_js_rule_name
-            }
-        } else {
-            # Async disable --> Inject default snipet based on user location selection
-            set js_snippet "<script type=\"text/javascript\" src=\"$injection_url\"></script>"
-            create_injection_rule $js_snippet $::html_js_rule_name
-        }
-
-        
-        if { [string first / $injection_url] != 0 } {
-            regsub "^https?:\/\/" $injection_url "" injection_url
-            puts "got absolute JS path and remove protocol: $injection_url"
-            regsub __JS_PATH__ $::shape_sed_irule {[HTTP::host][HTTP::path -normalized]} ::shape_sed_irule
-        } else {
-            puts "got relative JS path: $injection_url"
-            regsub __JS_PATH__ $::shape_sed_irule {[HTTP::path -normalized]} ::shape_sed_irule
-        }
-        # Inset the JS path to the Data Group
-        tmsh_modify "/ ltm data-group" "internal $JS_DG { records replace-all-with { $injection_url { } } type string }"
-    } else {
-        regsub __HTML_TAG_MATCHED__ $::shape_sed_irule {} ::shape_sed_irule
-        regsub __JS_PATH__ $::shape_sed_irule {[HTTP::path -normalized]} ::shape_sed_irule
-    }
-}
-
-proc config_SSE {} {
-    # Init variables
-    set ::shape_monitor "$::iapp_name\_ShapeMonitor"
-    set ::shape_sse_pool_name "$::iapp_name\_ShapeProdPool"
-    set OUTBOUNDS_DG "$::iapp_name\_outbound_ips"
-    set GET_DG "$::iapp_name\_ShapeGETEndpoints"
-    set POST_DG "$::iapp_name\_ShapePOSTEndpoints"
-    set PUT_DG  "$::iapp_name\_ShapePUTEndpoints"
-    set ANY_DG  "$::iapp_name\_ShapeANYEndpoints"
-    set ENTRY_POINT_DG "$::iapp_name\_entryPoints"
-    set JS_DG "$::iapp_name\_ShapeJs"
-    set GET_EP_members ""
-    set POST_EP_members ""
-    set PUT_EP_members ""
-    set ANY_EP_members ""
-    set ::sse_vs_name "$::iapp_name\_sse_vs"
-
-    # Init the template
-    init
-
-    tmsh_create "/ ltm html-rule" "tag-raise-event ${::html_before_script_rule} { match { tag-name script } }"
-
-    # Create HTML profile
-    tmsh_create "/ ltm profile" "html ${::shape_inject_html_profile_name} { app-service none content-detection disabled content-selection add { text/html text/xhtml } defaults-from /Common/html description none }"
-
-    # Create one-connect profile
-    tmsh_create "/ ltm profile" "one-connect ${::iapp_oneconnect} source-mask 255.255.255.255"
-
-    # Create Data Group for each HTTP methud
-    tmsh_create "/ ltm data-group" "internal $GET_DG  type string"
-    tmsh_create "/ ltm data-group" "internal $POST_DG  type string"
-    tmsh_create "/ ltm data-group" "internal $PUT_DG  type string"
-    tmsh_create "/ ltm data-group" "internal $ANY_DG  type string"
-    # Create the JS Injection path DG
-    tmsh_create "/ ltm data-group" "internal $JS_DG type string"
-    # Create Data Group for outbounds IPS (Shape cluster)
-    tmsh_create "/ ltm data-group" "internal $OUTBOUNDS_DG type ip"
-    tmsh_create "/ ltm data-group" "internal $ENTRY_POINT_DG  type string"
-
-    # Collect the required outbound ips members
-    foreach member $::pool__outbound_ips {
-        append outbound_ips "[tmsh::get_field_value $member ip] "
-    }
-    puts "setting outbound_ips: create ltm data-group internal $OUTBOUNDS_DG { records replace-all-with { ${outbound_ips}} type ip }"
-    tmsh_modify "/ ltm data-group" "internal $OUTBOUNDS_DG { records replace-all-with { ${outbound_ips}} type ip }"
-
-    foreach member $::data_groups__method_protection {
-        set endpoint [tmsh::get_field_value $member Endpoint]
-        regsub {\*} $endpoint {\\\*} endpoint
-        if {[tmsh::get_field_value $member ANY] == "Yes"}{
-            append ANY_EP_members "$endpoint "
-        } else {
-            if {[tmsh::get_field_value $member GET] == "Yes"}{
-                append GET_EP_members "$endpoint "
-            }
-            if {[tmsh::get_field_value $member POST] == "Yes"}{
-                append POST_EP_members "$endpoint "
-            }
-            if {[tmsh::get_field_value $member PUT] == "Yes"}{
-                append PUT_EP_members "$endpoint "
-            }
-        }
-    }
-    if { [string length ${GET_EP_members}] > 0 } {
-        tmsh_modify "/ ltm data-group" "internal $GET_DG  { records replace-all-with { ${GET_EP_members}} type string }"
-    }
-    if { [string length ${POST_EP_members}] > 0 } {
-        tmsh_modify "/ ltm data-group" "internal $POST_DG  { records replace-all-with { ${POST_EP_members}} type string }"
-    }
-    if { [string length ${PUT_EP_members}] > 0 } {
-        tmsh_modify "/ ltm data-group" "internal $PUT_DG  { records replace-all-with { ${PUT_EP_members}} type string }"
-    }
-    if { [string length ${ANY_EP_members}] > 0 } {
-        tmsh_modify "/ ltm data-group" "internal $ANY_DG  { records replace-all-with { ${ANY_EP_members}} type string }"
-    }
-
+proc config_shape_pool {} {
     if {$::pool__sse_traffic_mode == "Active/Passive"} {
         puts "active/passive"
         tmsh_create "/ ltm pool" "${::shape_sse_pool_name} min-active-members 1"
@@ -577,7 +462,6 @@ proc config_SSE {} {
                 } else {
                     append pool_members [format "/Common/%s.443" $ip]
                 }
-
             }
             append pool_members " "
         }
@@ -597,69 +481,256 @@ proc config_SSE {} {
             tmsh_modify "/ ltm pool" "${::shape_sse_pool_name} monitor default"
         }
     }
+}
 
+proc init {} {
+    # ---------- Internal Data Groups Names -----------------------
+    set ::JS_DG "$::iapp_name\_ShapeJs"
+    set ::GET_DG "$::iapp_name\_ShapeGETEndpoints"
+    set ::POST_DG "$::iapp_name\_ShapePOSTEndpoints"
+    set ::PUT_DG  "$::iapp_name\_ShapePUTEndpoints"
+    set ::ANY_DG  "$::iapp_name\_ShapeANYEndpoints"
+
+    # ---------- Shape Pool Configuration -------------------------
+    set ::shape_monitor "$::iapp_name\_ShapeMonitor"
+    set ::shape_sse_pool_name "$::iapp_name\_ShapeProdPool"
+    # ---------- sse VS Configuration -----------------------------
+    set ::shape_ssl_vs_name "$::iapp_name\_shape_ssl_vs"
+    
+    # Create HTML profile
+    tmsh_create "/ ltm profile" "html ${::shape_inject_html_profile_name} { app-service none content-detection disabled content-selection add { text/html text/xhtml } defaults-from /Common/html description none }"
+    tmsh_create "/ ltm html-rule" "tag-raise-event ${::html_before_script_rule} { match { tag-name script } }"
+
+    # Create one-connect profile
+    tmsh_create "/ ltm profile" "one-connect ${::iapp_oneconnect} source-mask 255.255.255.255"
+
+
+
+}
+
+proc detach_persist_profile {} {
+    foreach {vs_obj} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs_obj]
+        regsub -all "/" ${vs_name} "_" format_vs_name
+        set persist_vs_name "$::persist_cookie_name\_$format_vs_name"
+        set cookie_persist [find_profile $vs_obj "persist" "cookie"]
+        if { $cookie_persist == ${persist_vs_name} } {
+            tmsh_modify "/ ltm virtual" "$vs_name persist none"
+        }
+    }
+}
+
+proc cleanup {} {
+    # Detach all iApp components before reconfigured
+    
+    foreach {vs} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs]
+        regsub -all "/" ${vs_name} "_" format_vs_name
+        puts "========= $vs_name ==============="
+        if {[lsearch -exact [tmsh::get_field_names value $vs] "rules"] < 0} {
+            puts "No attached iRules for $vs_name"
+            continue
+        } else {
+            set rules_list [tmsh::get_field_value $vs rules]
+            set formated_rule_name "$::sse_irule_name\_${format_vs_name}"
+            puts "formated_rule_name: $formated_rule_name"
+            set idx [lsearch -exact $rules_list $formated_rule_name]
+            if {$idx >= 0} {
+                set rules_list [lreplace $rules_list $idx $idx]
+                detach_irule $vs_name
+            }
+            tmsh_modify "/ ltm virtual" "$vs_name rules { $rules_list }"
+
+            ## detach the HTML and oneconnect profiles from the VS
+            catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::shape_inject_html_profile_name }" }
+            catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::iapp_oneconnect }" }
+        }
+    }
+    detach_html_rules
+    detach_persist_profile
+    catch {
+        tmsh::delete ltm profile html profile ${::shape_inject_html_profile_name}
+    }
+}
+
+proc config_js_injection {} {
+    detach_html_rules
+    set injection_url "$::js_injection__injection_path"
+    if { $::js_injection__inject_tags == "Yes" && $injection_url != ""} {
+        
+        if {$::js_injection__async_enable == "Enable"} {
+            set ::iojs_snippet "<script type=\"text/javascript\" src=\"$injection_url?cache\"></script>"
+            set ::js_snippet "<script type=\"text/javascript\" src=\"$injection_url?async\" async></script>"
+
+            # Create HTML Rule for injecting the Shape JavaScript snippet
+            if {$::js_injection__inject_telemetryjs_in_body == "Yes"} {
+                tmsh_create "/ ltm html-rule" "tag-append-html ${::html_js_rule_name} { action { text \"$::js_snippet\" } match { tag-name body } }"
+                create_injection_rule $::iojs_snippet $::html_iojs_rule_name
+                # Append the rule to the HTML profile
+                tmsh_modify "/ ltm profile" "html ${::shape_inject_html_profile_name} rules add { ${::html_js_rule_name} }"
+            } else {
+                set js_snippet "$::iojs_snippet$::js_snippet"
+                create_injection_rule $js_snippet $::html_js_rule_name
+            }
+        } else {
+            # Async disable --> Inject default snippet based on user location selection
+            set js_snippet "<script type=\"text/javascript\" src=\"$injection_url\"></script>"
+            create_injection_rule $js_snippet $::html_js_rule_name
+        }
+        
+    } 
+    if { $injection_url != "" } {
+        if { [string first / $injection_url] != 0 } {
+            regsub "^https?:\/\/" $injection_url "" injection_url
+            puts "got absolute JS path and remove protocol: $injection_url"
+            regsub __JS_PATH__ $::shape_sed_irule {[HTTP::host][HTTP::path -normalized]} ::shape_sed_irule
+        } else {
+            puts "got relative JS path: $injection_url"
+            regsub __JS_PATH__ $::shape_sed_irule {[HTTP::path -normalized]} ::shape_sed_irule
+        }
+        # Insert the JS path to the Data Group
+        tmsh_create "/ ltm data-group" "internal $::JS_DG { records replace-all-with { $injection_url { } } type string }"
+        if { $::js_injection__inject_tags == "No" } {
+            regsub __HTML_TAG_MATCHED__ $::shape_sed_irule {} ::shape_sed_irule
+        }
+    } else {
+        regsub __JS_PATH__ $::shape_sed_irule {[HTTP::path -normalized]} ::shape_sed_irule
+        regsub __HTML_TAG_MATCHED__ $::shape_sed_irule {} ::shape_sed_irule
+    }
+}
+proc collect_endpoints {protected_endpoints_tbl isIappMitigation} {
+    foreach member $protected_endpoints_tbl {
+        set endpoint [tmsh::get_field_value $member endpoint]
+        if { $endpoint == "" } { continue }
+        set mitigation ""
+        set record_value ""
+        regsub -all {\*} $endpoint {\\\*} endpoint
+        if {[tmsh::get_field_value $member ANY] == "Yes"} { append ANY_EP_members "$endpoint {$record_value}" } 
+        else {
+            if {[tmsh::get_field_value $member GET] == "Yes"} { append GET_EP_members "$endpoint {$record_value}" }
+            if {[tmsh::get_field_value $member POST] == "Yes"} { append POST_EP_members "$endpoint {$record_value}" }
+            if {[tmsh::get_field_value $member PUT] == "Yes"}{ append PUT_EP_members "$endpoint {$record_value}" }
+        }
+    }
+    if { [info exists GET_EP_members] && [string length ${GET_EP_members}] > 0 } {tmsh_create "/ ltm data-group" "internal $::GET_DG records add { ${GET_EP_members}} type string" }
+    if { [info exists POST_EP_members] && [string length ${POST_EP_members}] > 0 } {tmsh_create "/ ltm data-group" "internal $::POST_DG records add { ${POST_EP_members}} type string" }
+    if { [info exists PUT_EP_members] && [string length ${PUT_EP_members}] > 0 } { tmsh_create "/ ltm data-group" "internal $::PUT_DG records add { ${PUT_EP_members}} type string" }
+    if { [info exists ANY_EP_members] && [string length ${ANY_EP_members}] > 0 } { tmsh_create "/ ltm data-group" "internal $::ANY_DG records add { ${ANY_EP_members}} type string" }
+}
+
+proc config_SSE {} {
+    set OUTBOUNDS_DG "$::iapp_name\_outbound_ips"
+    # Collect the required outbound ips members
+    foreach member $::pool__outbound_ips {
+        append outbound_ips "[tmsh::get_field_value $member ip] "
+    }
+    # Create Data Group for outbounds IPS (Shape cluster)
+    puts "setting outbound_ips: create ltm data-group internal $OUTBOUNDS_DG { records replace-all-with { ${outbound_ips}} type ip }"
+    tmsh_create "/ ltm data-group" "internal $OUTBOUNDS_DG { records replace-all-with { ${outbound_ips}} type ip }"
+    set INCLUDED_ENTRY_POINT_DG "$::iapp_name\_includedEntryPoints"
+    set EXCLUDED_ENTRY_POINT_DG "$::iapp_name\_excludedEntryPoints"
+
+    # Clean all components before reconfigured
+    cleanup
+    # Init the template
+    init
+
+
+
+    collect_endpoints $::protected_endpoints__endpoint_table_shapePolicy 0
+
+
+    # config shape pool
+    config_shape_pool
+
+    regsub __JS_DG__ $::shape_sed_irule $::JS_DG ::shape_sed_irule
+    regsub __INCLUDED_ENTRY_POINTS_DG__ $::shape_sed_irule $INCLUDED_ENTRY_POINT_DG ::shape_sed_irule
+    regsub __EXCLUDED_ENTRY_POINTS_DG__ $::shape_sed_irule $EXCLUDED_ENTRY_POINT_DG ::shape_sed_irule
     regsub __SHAPE_SSE_POOL__ $::shape_sed_irule $::shape_sse_pool_name ::shape_sed_irule
+    regsub __KILL_SWITCH__ $::shape_sed_irule [iapp::is ::general__kill_switch Yes] ::shape_sed_irule
+    regsub -all __GET_EP_DG__ $::shape_sed_irule $::GET_DG ::shape_sed_irule
+    regsub -all __POST_EP_DG__ $::shape_sed_irule $::POST_DG ::shape_sed_irule
+    regsub -all __PUT_EP_DG__ $::shape_sed_irule $::PUT_DG ::shape_sed_irule
+    regsub -all __ANY_EP_DG__ $::shape_sed_irule $::ANY_DG ::shape_sed_irule
+
+
+    set specific_flag 0
+    set excluded_flag 0
+
     regsub __OUTBOUNDS_IPS_DG__ $::shape_sed_irule $OUTBOUNDS_DG ::shape_sed_irule
-    regsub -all __GET_EP_DG__ $::shape_sed_irule $GET_DG ::shape_sed_irule
-    regsub -all __POST_EP_DG__ $::shape_sed_irule $POST_DG ::shape_sed_irule
-    regsub -all __PUT_EP_DG__ $::shape_sed_irule $PUT_DG ::shape_sed_irule
-    regsub -all __ANY_EP_DG__ $::shape_sed_irule $ANY_DG ::shape_sed_irule
-    regsub __JS_DG__ $::shape_sed_irule $JS_DG ::shape_sed_irule
-    regsub __ENTRY_POINTS_DG__ $::shape_sed_irule $ENTRY_POINT_DG ::shape_sed_irule
 
     # The user specific web pages (entry pages) for injection
-    if {$::js_injection__enable_js_injection == "Enable" && $::js_injection__inject_by_endpoint == "Yes"} {
-        # Collect the injected entry points
-        set entry_pages \{
+    if {$::js_injection__inject_tags == "Yes"} {
+        if {$::js_injection__inject_by_endpoint == "Yes"} {
+            # Collect the injected entry points
+            set included_entry_pages ""
             foreach path $::js_injection__injected_ep {
-                append entry_pages "\"[tmsh::get_field_value $path end_point]\""
-                append entry_pages " "
+                set endpoint [tmsh::get_field_value $path end_point]
+                if { $endpoint != "" } {
+                    append included_entry_pages "$endpoint "
+                }
+            }
+            if { $included_entry_pages != "" } {
+                regsub -all {\*} $included_entry_pages {\\\*} included_entry_pages
+                tmsh_create "/ ltm data-group" "internal $INCLUDED_ENTRY_POINT_DG records replace-all-with { $included_entry_pages} type string"
+                set specific_flag 1
+            }
         }
-        append entry_pages \}
-        puts "Entry pages: $entry_pages"
-        tmsh_modify "/ ltm data-group" "internal $ENTRY_POINT_DG records replace-all-with $entry_pages type string"
-        regsub __JS_SPESIFIC_PATH__ $::shape_sed_irule 1 ::shape_sed_irule
-    } else {
-        regsub __JS_SPESIFIC_PATH__ $::shape_sed_irule 0 ::shape_sed_irule
+        if {$::js_injection__exclude_endpoint == "Yes"} {
+            # Collect the excluded entry points
+            set excluded_entry_pages ""
+            foreach path $::js_injection__excluded_ep {
+                set endpoint [tmsh::get_field_value $path end_point]
+                if { $endpoint != "" } {
+                   append excluded_entry_pages "$endpoint "
+                }
+            }
+            if { $excluded_entry_pages != "" } {
+                regsub -all {\*} $excluded_entry_pages {\\\*} excluded_entry_pages
+                tmsh_create "/ ltm data-group" "internal $EXCLUDED_ENTRY_POINT_DG records replace-all-with { $excluded_entry_pages} type string"
+                set excluded_flag 1
+            }
+        }
     }
+    regsub __JS_EXCLUDED_PATH__ $::shape_sed_irule $excluded_flag ::shape_sed_irule
+    regsub __JS_SPECIFIC_PATH__ $::shape_sed_irule $specific_flag ::shape_sed_irule
 
     # Inject XFF flag into irule
-    if {$::advanced_features__xff == "Yes"} {
-        regsub __XFF__ $::shape_sed_irule true ::shape_sed_irule
-    } else {
-        regsub __XFF__ $::shape_sed_irule false ::shape_sed_irule
-    }
+    regsub __XFF__ $::shape_sed_irule [iapp::is ::advanced_features__xff Yes] ::shape_sed_irule
 
     # Inject __USE_DIFFERENT_SSL__ flag into irule
-    regsub __SSE_VS_NAME__ $::shape_sed_irule ${::sse_vs_name} ::shape_sed_irule
-    if {$::advanced_features__serverssl != ""} {
-        regsub __USE_DIFFERENT_SSL__ $::shape_sed_irule true ::shape_sed_irule
-    } else {
-        regsub __USE_DIFFERENT_SSL__ $::shape_sed_irule false ::shape_sed_irule
-    }
+    regsub __SHAPE_SSL_VS_NAME__ $::shape_sed_irule ${::shape_ssl_vs_name} ::shape_sed_irule
+    if { $::advanced_features__serverssl != ""} { regsub __USE_DIFFERENT_SSL__ $::shape_sed_irule true ::shape_sed_irule } 
+    else { regsub __USE_DIFFERENT_SSL__ $::shape_sed_irule false ::shape_sed_irule }
 
     foreach vs ${::vs_config__vs} {
         puts "======= vs: $vs ========"
         set vs_name ""
         set vs_irule ""
+        set customer_irules ""
 
-        # Get the pool name for sekected Virtual Server
-        set vs_obj [lindex [tmsh::get_config /ltm virtual ${vs}] 0]
-        set default_pool [tmsh::get_field_value $vs_obj pool]
-        # Replcae '/' with '_' in order to name the Irule based on Virtual Server
+        # Replace '/' with '_' in order to name the iRule based on Virtual Server
         regsub -all "/" $vs "_" vs_name
-        set ::irule_name "$::iapp_name\_Shape_iRule_${vs_name}"
-        # Set the pool name in the relevant iRule
-        regsub __APP_POOL__ $::shape_sed_irule $default_pool ::shape_sed_irule
-        # If customer using https, then we can use "SSL::disable serverside". Otherwise we don't use it
-        if { [should_inject_ssl_disable $vs_obj] } {
-            regsub -all __DISABLE_SSL__ $::shape_sed_irule "SSL::disable serverside" ::shape_sed_irule
-        } else {
-            regsub -all __DISABLE_SSL__ $::shape_sed_irule "" ::shape_sed_irule
+        set vs_irule_name "$::sse_irule_name\_${vs_name}"
+        set persist_vs_name "$::persist_cookie_name\_$vs_name"
+        tmsh_create "/ ltm persistence" "cookie ${persist_vs_name}"
+        # Get the pool name for selected Virtual Server
+        set vs_obj [lindex [tmsh::get_config /ltm virtual ${vs}] 0]
+        # If customer has irules configured, we want to backup them for later
+        catch {
+            foreach {rule} [tmsh::get_field_value $vs_obj rules] {
+                lappend customer_irules $rule
+            }
         }
+        # If customer using https, then we can use "SSL::disable serverside". Otherwise we don't use it
+        if { [supports_ssl $vs_obj "serverssl"] } { regsub -all __DISABLE_SSL__ $::shape_sed_irule "SSL::disable serverside" ::shape_sed_irule }
+        else {  regsub -all __DISABLE_SSL__ $::shape_sed_irule "" ::shape_sed_irule }
+
+        if { [supports_ssl $vs_obj "clientssl"] } { regsub -all __PROTO__ $::shape_sed_irule "https" ::shape_sed_irule } 
+        else {  regsub -all __PROTO__ $::shape_sed_irule "http" ::shape_sed_irule }
 
         # Add HTML profile if not exist
-        set html_profile [find_profile $vs_obj "html"]
+        set html_profile [find_profile $vs_obj "profile" "html"]
         if { $html_profile == "" } {
             set no_profile true
             set html_profile ${::shape_inject_html_profile_name}
@@ -674,19 +745,63 @@ proc config_SSE {} {
         config_js_injection
 
         # Check if VS has oneconnect profile, if no we add default one.
-        set oneconnect_profile [find_profile $vs_obj "one-connect"]
-        if { $oneconnect_profile == ""} {
-            set oneconnect_profile $::iapp_oneconnect
-        }
+        set oneconnect_profile [find_profile $vs_obj "profile" "one-connect"]
+        if { $oneconnect_profile == ""} { set oneconnect_profile $::iapp_oneconnect }
 
-        #configure vs
-        tmsh_modify "/ ltm virtual" "${vs} { profiles delete { ${html_profile} } profiles add { ${oneconnect_profile} ${::shape_inject_html_profile_name} } rules { ${::irule_name} } }"
+        ## Handle Cookie Persistence
+        set cookie_persist [find_profile $vs_obj "persist" "cookie"]
+        if {$::pool__cookie_persistence == "Enable"} {
+            if {$::advanced_features__serverssl == ""}  {
+                # Customer enabled shape cookie persistence and persist cookie not attached to VS --> attached default cookie persistence
+                regsub __SHAPE_COOKIE_PERSIST__ $::shape_sed_irule "persist cookie insert \"$tmsh::app_name\_persist_cookie\"" ::shape_sed_irule
+                if {$cookie_persist == "" || $cookie_persist == ${persist_vs_name}} {
+                    tmsh_modify "/ ltm virtual" "${vs} persist replace-all-with { ${persist_vs_name} }"
+                    # Disable cookie persistence for customer 
+                    regsub __APP_PERSIST_NONE__ $::shape_sed_irule {persist none} ::shape_sed_irule
+                } else {
+                    # Cookie persistence attached to VS and costumer enable shape cookie persistence
+                    regsub __APP_PERSIST_NONE__ $::shape_sed_irule {} ::shape_sed_irule
+                }
+            } else {
+                # The iApp will created different VS for shape traffic (since different SSL profile selected)
+                # --> since the traffic route from the VS, it will handle the cookie persistence and no need for iRule handeling
+                # The cookie persistence profile will create from set_sse_vs proc
+                regsub __APP_PERSIST_NONE__ $::shape_sed_irule {} ::shape_sed_irule
+                regsub __SHAPE_COOKIE_PERSIST__ $::shape_sed_irule {} ::shape_sed_irule
+
+                # The user select different SSL profile so the request will route to ssl_vs --> it will handle the persistence 
+                if { $cookie_persist == ${persist_vs_name} } {
+                    tmsh_modify "/ ltm virtual" "${vs} persist none"
+                }
+            }
+        } else {
+            # Cookie persistence for Shape pool disabled
+            regsub __APP_PERSIST_NONE__ $::shape_sed_irule {} ::shape_sed_irule
+            if {$::advanced_features__serverssl == "" && $cookie_persist != ""}  {
+                # Customer disable the persistence for Shape but set persistence to the application
+                # In that case we need to allow persistence for application but disable it for shape pool
+                regsub __SHAPE_COOKIE_PERSIST__ $::shape_sed_irule {persist none} ::shape_sed_irule
+            } else {
+                # The iApp creates new VS, so no need for persistence handling on iRule
+                regsub __SHAPE_COOKIE_PERSIST__ $::shape_sed_irule {} ::shape_sed_irule
+            }
+
+            # The founded persistence profile set by the iApp --> Remove it while the user disable the profile
+            if { $cookie_persist == ${persist_vs_name} } {
+                tmsh_modify "/ ltm virtual" "${vs} persist none"
+            }
+        }
 
         regsub -all "\\\\" $::shape_sed_irule "\\\\\\\\" vs_irule
         regsub -all {\$} $::shape_sed_irule "\\\\$" vs_irule
+        # Set the iRule content
 
-        # Create the iRule and attach it to the Virtual Server
-        tmsh_create "/ ltm rule" "${::irule_name} \{ $vs_irule \}"
+
+        tmsh_create "/ ltm rule" "${vs_irule_name} \{ $vs_irule \}"
+
+        lappend customer_irules ${vs_irule_name}
+
+        tmsh_modify "/ ltm virtual" "${vs} { profiles delete { ${html_profile} } profiles add { ${oneconnect_profile} ${::shape_inject_html_profile_name} } rules { ${customer_irules} } }"
 
         # Create vs for bigip <-> SSE in case client has chose to use another sslprofile between them.
         set_sse_vs $vs_obj
@@ -700,6 +815,7 @@ proc get_tag_location {tag} {
     switch -- $tag {
         "After <head>" { return "tag-append-html"}
         "After </title>" { return "tag-append-html" }
+        "After <body>" { return "tag-append-html" }
         "Before <script>" { return "tag-prepend-html" }
     }
     # Default is after tag
@@ -710,10 +826,11 @@ proc get_tag_location {tag} {
 #***** Return the tag tag name
 #*************
 proc get_tag_name {tag} {
-    puts "recived tag: $tag"
+    puts "received tag: $tag"
     switch -- $tag {
         "After <head>" { return "head" }
         "After </title>" { return "/title" }
+        "After <body>" { return "body" }
         "Before <script>" { return "script" }
     }
     return $tag
@@ -722,80 +839,103 @@ proc get_tag_name {tag} {
 if { $::general__clean == "Yes" } {
     cleanup
 } else {
-    config_SSE
+    config_SSE 
 }
 
 }
     			macro {}
     			presentation{
+define choice yesno display "small" default "No" {"Yes", "No"}
+define choice enable_disable display "medium" default "Disable" {"Enable", "Disable"}
+define choice response_code default "200" display "small" {"200", "201", "202", "204", "303", "304", "307", "400", "401", "403", "404", "405", "406", "412", "415", "500", "501"}
 section topic {
-    message version "v1.0.0"
+    message introduction "Configure the BIG-IP to work with SSE in Inline mode. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/sse-inline-v1.1.0/SSE/SSE-Inline/Deploy%20SSE%20Inline%20iApp%20Template%20in%20BIG-IP%2C%20v1.1.0.pdf"
+    message updates "Check for new versions of this template on the F5 Official iApp Github repository: https://github.com/F5Networks/shape-iapp/releases"
+    message version "v1.1.0"
 }
 
 section general {
-    choice clean default "No" display "xlarge" {"No", "Yes"}
+    yesno clean
+    optional (clean == "No") {
+        yesno kill_switch
+    }
 }
 
 optional (general.clean == "No") {
     section js_injection {
-        choice enable_js_injection default "Enable" {"Enable", "Disable"}
-        optional (enable_js_injection == "Enable") {
-            string injection_path required display "xlarge"
-            message injection_path_msg "The injection path can be set either relative or absolute. Relative path must start with slash character ('/')"
+        choice inject_tags default "Yes" {"Yes", "No"}
+        string injection_path display "xlarge"
+        message injection_path_msg "The JS injection path can be set either relative or absolute. A relative path must start with a slash '/’."
+        optional (inject_tags == "Yes") {
             choice injection_location default "After <head>" {"After <head>", "After </title>", "Before <script>"}
-            choice async_enable default "Enable" {"Enable", "Disable"}
-            optional (async_enable == "Enable") {
-                choice inject_telemetryjs_in_body default "No" {"Yes", "No"}
-                optional (inject_telemetryjs_in_body=="No") {
-                    message inject_in_body_msg "Telemetry JS is injected in the same location as the Shape JS."
+        }
+        choice async_enable default "Enable" {"Enable", "Disable"}
+        optional (async_enable == "Enable" && inject_tags == "Yes") {
+            choice inject_telemetryjs_in_body default "No" {"Yes", "No"}
+            optional (inject_telemetryjs_in_body=="No") {
+                message inject_in_body_msg "Telemetry JS is injected in the same location as the Shape JS."
+            }
+        }
+        optional (inject_tags == "Yes") {
+            yesno inject_by_endpoint
+            optional (inject_by_endpoint == "Yes") {
+                table injected_ep {
+                    string end_point required display "large"
                 }
             }
 
-            choice inject_by_endpoint default "No" {"Yes", "No"}
-            optional (inject_by_endpoint == "Yes") {
-                table injected_ep {
-                    string end_point display "xlarge"
+            yesno exclude_endpoint
+            optional (exclude_endpoint == "Yes") {
+                table excluded_ep {
+                    string end_point required display "large"
                 }
             }
         }
 
-        optional (enable_js_injection == "Disable") {
-            message js_injection_msg "The Shape Security Solution cannot be implemented on your iApp if Shape JS Insertion is disabled."
+        optional (inject_tags == "No") {
+            message snippets_note "Since you did not select the BIG-IP to handle JS injections, you need to put the following snippet(s) in the code of your web application. Replace ‘INJECTION_PATH’ with the path you received from F5 support."
+            optional (async_enable == "Enable") {
+                message cache_js_snippet_async_enabled "<script type='text/javascript' src='INJECTION_PATH?cache'></script>"
+                message async_js_snippet "<script type='text/javascript' src='INJECTION_PATH?async' async></script>"
+            }
+            optional (async_enable == "Disable") {
+                message cache_js_snippet "<script type='text/javascript' src='INJECTION_PATH'></script>"
+            }
         }
     }
 
-    section data_groups {
-        table method_protection {
-            string Endpoint display "xlarge"
-            choice ANY default "No" display "large" {"No", "Yes"}
-            choice GET default "No" display "large" {"No", "Yes"}
-            choice POST default "No" display "large" {"No", "Yes"}
-            choice PUT default "No" display "large" {"No", "Yes"}
-         }
+    section protected_endpoints {
+            table endpoint_table_shapePolicy {
+                string endpoint display "large"
+                yesno ANY
+                yesno GET
+                choice POST default "Yes" display "small" {"Yes", "No"}
+                yesno PUT
+            }
     }
 
     section pool {
-        table outbound_ips {
+       table outbound_ips {
             string ip required display "xlarge"
         }
         choice sse_traffic_mode default "Active/Active" {"Active/Active", "Active/Passive"}
+        enable_disable cookie_persistence
         table pool_addresses {
-            string address required validator "IpOrFqdn" display "xlarge"
+            string address required validator "IpOrFqdn" display "large"
             optional (sse_traffic_mode == "Active/Passive") {
-                string priority_group required validator "NonNegativeNumber" display "xlarge"
+                string priority_group required validator "NonNegativeNumber" display "small"
             }
         }
-        choice check default "No" display "xlarge" {"Yes", "No"}
+        yesno check
         optional (check == "Yes") {
-           string url required display "xlarge"
-           string port required display "xlarge" validator "PortNumber"
-           string rc required display "xlarge" validator "NonNegativeNumber"
+        string url required display "large" default "/sedcloudapi/health"
+        string port required display "small" validator "PortNumber" default "80"
+        string rc required display "small" validator "NonNegativeNumber"  default "200"
         }
     }
-
     section vs_config {
-        message note "Every virtual server you select here must have a default pool and HTTP profile attached to it"
-        multichoice vs display "xxlarge" tcl {
+        message note "Your virtual server must have an HTTP profile and default pool attached to it."
+        multichoice vs display "xlarge" tcl {
                 package require iapp 1.3.0
                 set ::choices "[iapp::get_items ltm virtual]"
                 return [iapp::safe_display ::choices]
@@ -803,79 +943,88 @@ optional (general.clean == "No") {
     }
 
     section advanced_features {
-        choice xff default "Yes" display "xlarge" {"Yes", "No"}
-        multichoice serverssl display "xxlarge" tcl {
+        choice xff default "Yes" display "small" {"Yes", "No"}
+        message note "HTTP profile has the ability to insert XFF value. make sure you do not enable both."
+        multichoice serverssl display "xlarge" default {"/Common/serverssl"} tcl {
             package require iapp 1.3.0
             set ::choices "[iapp::get_items ltm profile server-ssl]"
             return [iapp::safe_display ::choices]
         }
-    string vip2vip_ip display "xlarge" validator "IpOrFqdn" default "1.2.3.4" required
+        string vip2vip_ip display "medium" validator "IpOrFqdn" default "1.2.3.4" required
     }
 }
 
 text {
-    topic "Shape SSE iApp Template"
+    topic "Welcome to the iApp template for SSE INLINE"
+    topic.introduction "Introduction"
+    topic.updates "Check for Updates"
     topic.version "Template Version:"
 
     # **** General ****
     general "General"
     general.clean "Clean Before Deletion"
+    general.kill_switch "Activate Kill-Switch"
 
     # *******
     # ** JavaScript Injection
     # *******
     js_injection "JS Injection Configuration"
-    js_injection.enable_js_injection "Shape JS Injection"
-    js_injection.js_injection_msg "WARNING"
-    js_injection.inject_in_body_msg "Note"
     js_injection.injection_path "Shape JS URL or Path"
     js_injection.injection_path_msg "Note"
-    js_injection.inject_telemetryjs_in_body "Inject Telemetry JS in <Body> tag"
-    js_injection.async_enable "Async JS Injection"
+    js_injection.inject_telemetryjs_in_body "Inject Telemetry JS in <Body> Tag"
+    js_injection.async_enable "Telemetry JS Injection"
+    js_injection.inject_in_body_msg "Note"
     js_injection.injection_location "Location for Shape JS Injection"
-    js_injection.inject_by_endpoint "Inject Shape JS in specific webpages only"
-    js_injection.injected_ep "Entry page paths"
+    js_injection.inject_by_endpoint "Inject Shape JS in Specific Webpages Only"
+    js_injection.injected_ep "JS Injection Paths"
     js_injection.injected_ep.end_point "Path"
-
-    data_groups "Shape Endpoints Configuration"
-    # *******
-    # ** protected IPS
-    # *******
-    data_groups.method_protection "Paths to be routed to Shape Security"
-
+    js_injection.exclude_endpoint "Exclude Shape JS Injection from Specific Webpages"
+    js_injection.excluded_ep "JS Excluded Paths"
+    js_injection.excluded_ep.end_point "Path"
+    js_injection.inject_tags "BIG-IP Handles JS Injections"
+    js_injection.snippets_note "Note"
+    js_injection.cache_js_snippet_async_enabled "I/O Hook JS"
+    js_injection.cache_js_snippet "I/O Hook JS"
+    js_injection.async_js_snippet "Async Telemetry JS"
+    protected_endpoints.endpoint_table_shapePolicy.endpoint "Endpoint"
+    protected_endpoints "Shape Endpoints Configuration"
+    protected_endpoints.endpoint_table_shapePolicy "Paths to be Routed to Shape Security"
     # ===========================================================
     # =============== pool configuration section ================
     # ===========================================================
     pool "Pool Configuration"
+
+
     # *******
     # ** outbounds IPS
     # *******
-    pool.outbound_ips "Shape outbound IPs"
+    pool.outbound_ips "Shape Outbound IPs"
     pool.outbound_ips.ip "IP"
-
-    pool.pool_addresses "Shape protection pool"
-    pool.pool_addresses.address "pool member (either IP or FQDN)"
+    pool.pool_addresses "Shape Protection Pool"
+    pool.pool_addresses.address "Pool Member (either IP or FQDN)"
+    pool.cookie_persistence "Cookie Persistence for Shape Protection Pool"
     pool.check "Add HTTP Health Check"
     pool.url "Liveness Path"
     pool.port "Port"
     pool.rc "Response Code"
-    pool.sse_traffic_mode "Traffic routing methodology"
-    pool.pool_addresses.priority_group "priority group"
-
+    pool.sse_traffic_mode "Traffic Routing Methodology"
+    pool.pool_addresses.priority_group "Priority Group"
     # ===========================================================
     # =============== vs config Section =======================
     # ===========================================================
     vs_config "Virtual Server Configuration"
     vs_config.note "Note"
-    vs_config.vs "Application’s virtual server(s) to protect"
+    vs_config.vs "Application’s Virtual Server(s) to Protect"
 
     # ===========================================================
     # =============== Advanced Features Section =================
     # ===========================================================
     advanced_features "Advanced Features"
-    advanced_features.xff "Rewrite XFF header with Connecting IP"
-    advanced_features.serverssl "Add different server SSL profile for Shape pool"
+    advanced_features.xff "Rewrite XFF Header with Connecting IP"
+    advanced_features.note "Note"
+    advanced_features.serverssl "Add Server-Side SSL Profile for Shape Pool"
     advanced_features.vip2vip_ip "Encrypting Virtual Server IP"
+
 }
 }
     			role-acl none

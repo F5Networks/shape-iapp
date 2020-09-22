@@ -11,7 +11,7 @@
 <p>This template creates a complete configuration optimized for the SED application</p>
 <ul>
   <li>Before you can configure the BIG-IP to work with SED application, ensure that the SED cluster up and running.</li>
-  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/sse-api-v1.0.0/SSE/SSE-API/Deploy%20SSE%20API%20iApp%20Template%20in%20BIG-IP%2C%20v1.0.0.pdf</b></li>
+  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/sse-api-v1.0.1/SSE/SSE-API/Deploy%20SSE%20API%20iApp%20Template%20in%20BIG-IP%2C%20v1.0.1.pdf</b></li>
 </ul>
 
 
@@ -1424,9 +1424,9 @@ define choice yesno display "small" default "No" {"Yes", "No"}
 define choice enable_disable display "medium" default "Disable" {"Enable", "Disable"}
 define choice response_code default "200" display "small" {"200", "201", "202", "204", "303", "304", "307", "400", "401", "403", "404", "405", "406", "412", "415", "500", "501"}
 section topic {
-    message introduction "Configure the BIG-IP to work with SSE in API mode. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/sse-api-v1.0.0/SSE/SSE-API/Deploy%20SSE%20API%20iApp%20Template%20in%20BIG-IP%2C%20v1.0.0.pdf"
+    message introduction "Configure the BIG-IP to work with SSE in API mode. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/sse-api-v1.0.1/SSE/SSE-API/Deploy%20SSE%20API%20iApp%20Template%20in%20BIG-IP%2C%20v1.0.1.pdf"
     message updates "Check for new versions of this template on the F5 Official iApp Github repository: https://github.com/F5Networks/shape-iapp/releases"
-    message version "v1.0.0"
+    message version "v1.0.1"
 }
 
 section general {

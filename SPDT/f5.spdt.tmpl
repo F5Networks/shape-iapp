@@ -11,7 +11,7 @@
 <p>This template creates a complete configuration optimized for SPDT</p>
 <ul>
   <li>Before you can configure the BIG-IP to work with SPDT, ensure that the SPDT instance is up and running.</li>
-  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/spdt-__TAG__/SPDT/How%20to%20deploy%20a%20SPDT%20iApp%20in%20the%20BIG-IP%2C%20__TAG__.pdf</b></li>
+  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/master/SPDT/Deploy%20SPDT%20iApp%20template%20in%20BIG-IP%2C%20v2.0.0.pdf</b></li>
 </ul>
 
 <p>
@@ -438,7 +438,7 @@ if { $::general__clean == "No" } { spdt_config }}
     			presentation{define choice yesno display "small" default "No" {"Yes", "No"}
 
 section topic {
-    message introduction "Configure the BIG-IP to work with SPDT. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/SPDT-__TAG__/How%20to%20deploy%20a%20SPDT%20iApp%20in%20the%20BIG-IP%2C%20__TAG__.pdf"
+    message introduction "Configure the BIG-IP to work with SPDT. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/master/SPDT/Deploy%20SPDT%20iApp%20template%20in%20BIG-IP%2C%20v2.0.0.pdf"
     message updates "Check for new versions of this template on the F5 Official iApp Github repository: https://github.com/F5Networks/shape-iapp/releases"    
     message version "v2.0.0"
 }

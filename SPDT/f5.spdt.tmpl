@@ -1,0 +1,551 @@
+#TMSH-VERSION: 12.1.0
+
+    cli admin-partitions {
+    	update-partition Common
+    }
+    sys application template /Common/F5.spdt {
+    	actions {
+    		definition {
+    			html-help {
+<p><b>SPDT iApp Template</b></p>
+<p>This template creates a complete configuration optimized for SPDT</p>
+<ul>
+  <li>Before you can configure the BIG-IP to work with SPDT, ensure that the SPDT instance is up and running.</li>
+  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://github.com/F5Networks/shape-iapp/blob/spdt-__TAG__/SPDT/How%20to%20deploy%20a%20SPDT%20iApp%20in%20the%20BIG-IP%2C%20__TAG__.pdf</b></li>
+</ul>
+
+<p>
+<h6>General</h6>
+<ul> 
+    <li><b>Clean Before Deletion:</b> Set to Yes to permanently delete the iApp. To complete deletion, click Finished and then delete the iApp from the iApp list at iApps>Application Services>Applications.</li>
+    <li><b>Kill-Switch:</b> Set to Yes to disable, but not permanently delete the iApp. When the iApp is disabled, HTTP requests are sent to the web application’s server directly without any logs or cloning data.</li>
+</ul>
+
+
+<h6>SPDT Settings</h6>
+<ul>
+    <li><b>Operation Mode:</b> Choose Clone to copy all HTTP requests from the virtual server to the SPDT pool. Choose Log to log the HTTP requests from the virtual server to the server you chose in the pool configuration, using the High Speed Log (HSL) protocol.</li>
+    <li><b>Deployment Mode:</b> Choose On Premise to send HTTP requests to an on-premise SPDT instance without TLS. Choose Cloud to send HTTP requests to an SPDT instance in the cloud with TLS. When Deployment Mode = Cloud, the iApp dynamically creates a server-side SSL profile for the HSL pool.</li>
+    <li><b>Tenant ID:</b> Enter the Tenant ID provided to you from F5 support.</li>
+    <li><b>SPDT Pool Member:</b> Add here the IP or FQDN for the pool member of the SPDT/HSL server. A subnet range cannot be used.</li>
+    <li><b>Add Health Check:</b> Choose whether to perform a Health Check on the pool members. If Operation Mode = Clone, the ICMP Health Check is performed in intervals of 45 seconds. If Operation Mode = Log, the TCP Health Check is performed in intervals of 5 seconds.</li>
+</ul>
+<h6>Virtual Server Configuration</h6>
+<ul>
+    <li><b>Application Virtual Server:</b> Select the virtual server of your application. Once the virtual server is selected, all traffic that goes through this virtual server will be cloned/logged to the SPDT system</li>
+</ul>
+<h6>Advanced Options</h6>
+<ul>
+    <li><b>Client IP Source:</b> Select the source for the client IP. This setting is not displayed if Operation Mode = Clone</li>
+    <li><b>Source IP Header Name:</b> If Client IP Source=Custom Header, set here the header name.</li>
+    <li><b>Rewrite XFF header with Connecting IP:</b> Select Yes to add an XFF header to HTTP requests. This setting is not displayed if Operation Mode = Log.</li>
+    <li><b>Encrypting Virtual Server IP:</b>This IP is used for internal routing when the virtual server is configured with a server-side SSL profile. This must be a none-routable IP.</li>
+</ul>
+
+</p>
+}
+    			implementation {tmsh::log_dest file
+tmsh::log_level crit
+tmsh::include "f5.app_utils"
+
+puts "=============== ${tmsh::app_name} Log =================== "
+set ::iapp_name "/Common/$tmsh::app_name"
+set ::icmp_interval 45
+set ::icmp_timeout 60
+set ::spdt_icmp "${::iapp_name}\_spdt_icmp"
+set ::clone_irule_name "${::iapp_name}\_target_ssl_vip"
+set ::hsl_irule_name "${::iapp_name}\_hsl"
+set ::log_dest_name "${::iapp_name}\_LogDest"
+set ::log_publ_name "${::iapp_name}\_LogPubl"
+set ::shape_ssl_vs_name "$::iapp_name\_shape_ssl_vs"
+set ::syslog_pool_name "$::iapp_name\_syslogPool"
+set ::iapp_oneconnect "$::iapp_name\_oneconnect"
+set ::server_ssl_name "$::iapp_name\_severSslProfile"
+set ::syslog_port 60514
+set ::spdt_port 80
+set ::spdt_pool_name "$::iapp_name\_spdt_pool"
+set ::sni "none"
+############################# HSL iRule start here ##################################
+set ::hsl_iRule {
+# SPDT logging iRule v1.0
+# Provide HSL publisher name
+
+when CLIENT_ACCEPTED {
+    # Set publisher name for HSL as configured in BIG-IP
+    set publisher __LOG_PUBLISHER__
+    set tenant_id __TENANT_ID__
+    set my_hsl [HSL::open -publisher ${publisher}]
+    set client_ip_source __SOURCE_IP__
+    set client_ip_header "__SOURCE_IP_HEADER_NAME__"
+}
+
+when HTTP_REQUEST {
+    set hdrkvlist "[split [string trim [string map {| "<>" \r\n | \n "" \r ""} [string range [HTTP::request] [string first "\n" [HTTP::request] ] end ] ] | ] | ]"
+    set shapehdrlist {}
+    foreach elem "$hdrkvlist" {
+        foreach {name value} [list [join [lrange [split $elem :] 0 0]] [string trimleft [join [lrange [split $elem :] 1 end] ":"]]] {
+            lappend shapehdrlist \"$name\":\"$value\"
+        }
+    }
+    set method [HTTP::method]
+    set uri [HTTP::uri]
+    if {$client_ip_source || ![HTTP::header exists $client_ip_header]} {
+        set id.orig_h [IP::client_addr]
+    } else {
+        set id.orig_h [lindex [split [HTTP::header values $client_ip_header] ","] 0]
+        # In the case of multiple XFF headers, the BIGIP will combine the headers for a list so we need to remove the brackets
+        regsub -all "\{" ${id.orig_h} "" id.orig_h
+    }
+}
+
+when HTTP_RESPONSE {
+    set status_code [HTTP::status]
+    set location [HTTP::header Location]
+    set set_cookies [HTTP::header values Set-Cookie]
+    set content_type [HTTP::header Content-Type]
+    set response_body_len [HTTP::header Content-Length]
+
+    set jlstr "\{\"ts\":[clock format [clock seconds] -format %s],\"id.orig_h\":\"${id.orig_h}\",\"method\":\"$method\",\"uri\":\"$uri\",\"client_headers\":\[[string trimright [string map { \":\" :\  \{ { } \} ,} $shapehdrlist] ,]\],\"status_code\":\"$status_code\",\"location_header\":\"$location\",\"set_cookies\":\"$set_cookies\",\"content_type\":\"$content_type\",\"response_body_len\":\"$response_body_len\",\"tenant_id\":\"${tenant_id}\"\}"
+    HSL::send $my_hsl $jlstr
+    unset -- hdrkvlist shapehdrlist
+}
+
+when CLIENT_CLOSED {
+    unset my_hsl
+}
+}
+############################# HSL iRule End ##################################
+
+############################# iRule start here ##################################
+set ::clone_iRule {
+# Set the lowest priority to not disturb the Customer iRules
+priority 1000
+
+when RULE_INIT {
+  set ::debug 0
+}
+
+when HTTP_REQUEST {
+    # Set 'Rewrite XFF header with Connecting IP' variable (1 - will Insert XFF)
+    set xff __XFF__
+
+    # Insert XFF header
+    if { $xff } {
+        HTTP::header insert X-Forwarded-For [IP::client_addr]
+    }
+
+    __ROUTE_TRAFFIC__
+}
+}
+############################# iRule ends here ###################################
+
+# ====== route traffic for re-encryption in a backend VIP ==================
+set ::route_traffic {
+    SSL::disable serverside
+    virtual __VS_NAME__
+    if { $::debug } {log local0. "got http request on origin vs"}
+}
+# ===================================================================
+
+proc tmsh_create { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_create "\"$component\"" "\"$arguments\""
+}
+
+proc tmsh_modify { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_modify "\"$component\"" "\"$arguments\""
+}
+
+proc detach_monitor {} {
+    tmsh_modify "/ ltm pool" "${::spdt_pool_name} monitor none"
+}
+
+# Search on given vs for profile from given type
+proc find_profile {vs_obj type sub_type} {
+    set found false
+    set fomated_type $type
+
+    if { $type == "profile" } {set fomated_type "profiles"}
+
+    catch {
+        foreach {profile} [tmsh::get_config /ltm $type $sub_type] {
+            foreach {vs_profile} [tmsh::get_field_value $vs_obj $fomated_type] {
+                if {[lindex $vs_profile 1] == [lindex $profile 3]} {
+                    set found true
+                    return [lindex $vs_profile 1]
+                }
+            }
+        }
+    } result
+    if { $found } {
+        return $result
+    }
+    return ""
+}
+
+proc get_profile_name {vs_obj profile} {
+    foreach {prof} [tmsh::get_field_value $vs_obj profiles] {
+        if {[string first $profile $prof] != -1} {
+            # split the profile by WS.
+            # --- profile format: profiles /Common/ssl {context serverside}
+            return [lindex [regexp -inline -all -- {\S+} $prof] 1]
+        }
+    }
+    return ""
+}
+
+proc config_pool {pool_name port} {
+    set formated_name ""
+
+    # no effect if pool already exists
+    tmsh_create "/ ltm pool" "${pool_name}"
+
+    set ip  $::settings__pool_member
+    set pg 0
+
+    if { $ip matches_regex {(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)} } {
+        # The spdt pool set as FQDN
+        tmsh_create "/ ltm node" "/Common/$ip fqdn { name $ip autopopulate enabled }"
+        tmsh_modify "/ ltm pool" "${pool_name} members replace-all-with {/Common/$ip:$port {fqdn { autopopulate enabled } }}"
+        set ::sni $ip
+    } else {
+        # Check if it is an IPV6 or IPV4
+        if { $ip matches_regex {\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}} } {
+            tmsh_modify "/ ltm pool" "${pool_name} members replace-all-with {/Common/$ip:$port {address $ip }}"
+        } else {
+            tmsh_modify "/ ltm pool" "${pool_name} members replace-all-with {/Common/$ip.$port }"
+        }
+    }
+
+    if {$::settings__health_check == "Yes"} {
+        # ICMP HC releavnt only for clone mode
+        if {$::settings__operation_mode == "Clone"} {
+            # If customer choose to use ICMP Health Check, we also add icmp-gateway health check with ::icmp_timeout and ::icmp_interval
+            # create gateway-icmp monitor with timeout set to ::icmp_timout and interval set to ::icmp_interval
+            tmsh_create "/ ltm monitor" "gateway-icmp ${::spdt_icmp} interval $::icmp_interval timeout $::icmp_timeout"
+            tmsh_modify "/ ltm pool" "${pool_name} monitor ${::spdt_icmp}"
+        } else {
+            # Log mode --> TCP HC
+            tmsh_modify "/ ltm pool" "${pool_name} monitor tcp"
+        }
+    } else {
+        #! DO NOT REMOVE DEATCH_MONITOR !
+        # deatch the monitor on reconfiguration.
+        # While re-config activates, the Iapp will try to remove the monitor components so we must detach it from the pool. Otherwise, an error will be prompted
+        detach_monitor
+    }
+}
+
+proc cleanup {} {
+    # Remove all Iapp components before reconfigured
+    foreach {vs} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs]
+        regsub -all "/" ${vs_name} "_" format_vs_name
+        puts "========= cleaning $vs_name ==============="
+        # Remove cloning pool -> If cloning pool not attahced nothing will happened
+        tmsh_modify "/ ltm virtual" "$vs_name clone-pools delete { all }"
+        if {[lsearch -exact [tmsh::get_field_names value $vs] "rules"] < 0} {
+            puts "No attached iRules for $vs_name"
+            continue
+        }
+
+        set rules_list [tmsh::get_field_value $vs rules]
+        set formated_clone_rule_name "$::clone_irule_name\_${format_vs_name}"
+        set formated_hsl_rule_name "$::hsl_irule_name\_${format_vs_name}"
+        set clone_irule_idx [lsearch -exact $rules_list $formated_clone_rule_name]
+        set hsl_irule_idx [lsearch -exact $rules_list $formated_hsl_rule_name]
+        if {$clone_irule_idx >= 0} { set rules_list [lreplace $rules_list $clone_irule_idx $clone_irule_idx] }
+        if {$hsl_irule_idx >= 0} { set rules_list [lreplace $rules_list $hsl_irule_idx $hsl_irule_idx] }
+
+        # Attach the VS original iRule after we detached the iApp iRules
+        tmsh_modify "/ ltm virtual" "$vs_name rules { $rules_list }"
+
+        # Clean oneConnect profile (Always created for Log/Cloud deployment mode)
+        catch { 
+            tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::iapp_oneconnect }"
+        }
+    }
+}
+
+proc set_syslog_encryption_comp {} {
+    # Create a new “syslog” pool and place a syslog server as a member (port 60514)
+    # Create a new virtual “encrypting_syslog” with the following: 
+        # TCP profile and Serverssl profile
+        # OneConnect
+        # Attach the SPDT pool
+
+    set syslog_vs_name "$::iapp_name\_syslogEncryptVS"
+    set syslog_vs_dumy_ip $::advanced_features__vip2vip_ip
+    set syslog_vs_port $::syslog_port
+    set cert_name "*.spdt.shapesecurity.com"
+
+    # Create syslog pool
+    tmsh_create "/ ltm pool" "${::syslog_pool_name} members replace-all-with {$syslog_vs_dumy_ip:$syslog_vs_port}"
+
+    # Create One Connect profile
+    tmsh_create "/ ltm profile" "one-connect ${::iapp_oneconnect}"
+    set oneconnect_profile $::iapp_oneconnect 
+
+
+    # Create new ssl profile for HSL 
+    tmsh_create "/ ltm profile" "server-ssl ${::server_ssl_name} { authenticate-name ${cert_name} peer-cert-mode require ca-file ca-bundle.crt server-name ${::sni}}"
+
+    set serverssl_profile ${::server_ssl_name}
+
+    #Create the syslog encryption VS
+    tmsh_create "/ ltm virtual" "${syslog_vs_name} {description \"Encrypt HSL with Server Side SSL\" source 0.0.0.0/0 destination ${syslog_vs_dumy_ip}:$syslog_vs_port profiles add { ${oneconnect_profile} tcp {context all} $serverssl_profile { context serverside } } pool ${::spdt_pool_name}}"
+}
+
+proc spdt_config {} {
+    # Kill switch is active ==> No configuration needed
+    if { $::general__kill_switch == "Yes"} {
+        puts "Kill Switch is active!! Skiping configuration"
+        return
+    }
+
+    set app_pool ""
+    set formated_name ""
+    set snat_type "none"
+
+    if {$::settings__operation_mode == "Log"} {
+        # Config the SPDT pool
+        config_pool ${::spdt_pool_name} $::syslog_port
+        if {$::settings__deployment_mode == "Cloud"} {
+            # Create VS for the encryption data that sent over TCP to SPDT (HSL)
+            set_syslog_encryption_comp
+            # for cloud mode, the log destination pool is the syslog pool that will point to the encrypting VS
+            set log_dest_pool_name ${::syslog_pool_name}
+        } else {
+            # set the pool name for the log destination for on-prem mode
+            set log_dest_pool_name ${::spdt_pool_name}
+        }
+
+        tmsh_create "/ sys log-config" "destination remote-high-speed-log ${::log_dest_name} { pool-name ${log_dest_pool_name} protocol tcp}"
+        tmsh_create "/ sys log-config" "publisher ${::log_publ_name} { destinations replace-all-with {${::log_dest_name}}}"
+
+        # Set the source client IP
+        regsub __SOURCE_IP__ $::hsl_iRule [iapp::is ::advanced_features__source_ip "Source IP"] ::hsl_iRule
+        if {$::advanced_features__source_ip == "X-Forwarded-For"} {
+            regsub __SOURCE_IP_HEADER_NAME__ $::hsl_iRule "X-Forwarded-For" ::hsl_iRule
+        } elseif {$::advanced_features__source_ip == "True-Client-IP"} {
+            regsub __SOURCE_IP_HEADER_NAME__ $::hsl_iRule "True-Client-IP" ::hsl_iRule
+        } elseif {$::advanced_features__source_ip == "Custom Header"} {
+            regsub -all {["(),/:;<=>?@\[\]{}]} ${::advanced_features__source_ip_header_name} {} formated_header_name
+            regsub __SOURCE_IP_HEADER_NAME__ $::hsl_iRule ${formated_header_name} ::hsl_iRule
+        } else {
+            regsub __SOURCE_IP_HEADER_NAME__ $::hsl_iRule {} ::hsl_iRule
+        }
+    } else {
+        config_pool ${::spdt_pool_name} $::spdt_port
+    }
+
+    # In case of creating new VS, we will use this var
+    set ssl_vs_port 80
+    foreach vs ${::vs_config__vs} {
+        set vs_name ""
+        regsub -all "/" $vs "_" vs_name
+        set vs_irule ""
+        set vs_hsl_rule_name "$::hsl_irule_name\_${vs_name}"
+        set vs_clone_rule_name "$::clone_irule_name\_${vs_name}"
+
+        set vs_obj [lindex [tmsh::get_config /ltm virtual ${vs}] 0]
+        catch { set snat_type [tmsh::get_field_value $vs_obj source-address-translation.type] }
+        # Replace '/' with '_' in order to name the iRule based on Virtual Server
+
+        # We backup the customer irules in case we need to add an irule
+        set customer_irules ""
+        # If customer has irules configured, we want to backup them for later
+        if {[lsearch -exact [tmsh::get_field_names value $vs_obj] "rules"] >= 0} {
+            foreach {irule} [tmsh::get_field_value $vs_obj rules] {
+                # In case customer move from using serverssl to not using serverssl, we don't want to keep ::irule_name
+                if {$irule != $vs_clone_rule_name && $irule != $vs_hsl_rule_name} { append customer_irules $irule " " }
+            }
+        }
+
+        if {$::settings__operation_mode == "Log"} {
+            set vs_irule $::hsl_iRule
+            set vs_irule_name $vs_hsl_rule_name
+
+            regsub __LOG_PUBLISHER__ $vs_irule ${::log_publ_name} vs_irule
+            regsub __TENANT_ID__ $vs_irule $::settings__tenant_id vs_irule
+
+        } else {
+            # Deployment mode set to Clone
+            set vs_irule $::clone_iRule
+            set vs_irule_name $vs_clone_rule_name
+
+            # Insert XFF to iRule if requested
+            regsub __XFF__ $vs_irule [iapp::is ::advanced_features__xff Yes] vs_irule
+
+            set serverssl_profile [get_profile_name $vs_obj "serverssl"]
+            # If a server ssl profile attached to the virtual server, the iApp will split the virtual server into two virtual servers.
+            # The origin virtual server will decrypt the request, clone it (server clone) and route the request to the second virtual server.
+            # The new virtual server will encrypt the request with ssl and will route to the origin pool.
+            if {$serverssl_profile != ""} {
+                # Set dumy address for the ssl virtual server since the request route via iRule and it is internal usage only
+                set ssl_vs_dumy_addr $::advanced_features__vip2vip_ip
+                set ssl_vs_name "$vs\_ssl_vip"
+                # get the pool name so we can set it in the new VS
+                if {[tmsh::get_field_value $vs_obj pool app_pool]} {
+                    # 'snat' type requires snat pool so need to differentiate from other cases
+                    if {$snat_type != "snat"} {
+                        tmsh_create "/ ltm virtual" "$ssl_vs_name description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${ssl_vs_dumy_addr}:$ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type $snat_type } pool $app_pool"
+                    } else {
+                        set snat_pool [tmsh::get_field_value $vs_obj source-address-translation.pool]
+                        tmsh_create "/ ltm virtual" "$ssl_vs_name description \"Encrypt the request with ssl and send to application\" source 0.0.0.0/0 destination ${ssl_vs_dumy_addr}:$ssl_vs_port profiles replace-all-with { http { context all } $serverssl_profile { context serverside } } source-address-translation { type $snat_type pool $snat_pool } pool $app_pool"
+                    }
+                } else {
+                    puts "WARNING: Selected Virtual Server $::vs_config__vs has no pool attached."
+                }
+
+                regsub __ROUTE_TRAFFIC__ $vs_irule $::route_traffic vs_irule
+                regsub __VS_NAME__ $vs_irule ${ssl_vs_name} vs_irule
+
+                # Each VS will set with the releavnty vip2vip --> we need to change the port for the dumy IP so we can create several VS`s
+                incr ssl_vs_port 1
+            } else {
+                regsub __ROUTE_TRAFFIC__ $vs_irule "" vs_irule
+            }
+
+            # Set serverside clone
+            tmsh_modify "/ ltm virtual" "${vs} clone-pools replace-all-with {${::spdt_pool_name} { context serverside }}"
+        }
+
+        # Attach the iRules to the VS
+        regsub -all "\\\\" $vs_irule "\\\\\\\\" vs_irule
+        regsub -all {\$} $vs_irule "\\\\$" vs_irule
+        tmsh_create "/ ltm rule" "${vs_irule_name} \{ $vs_irule \}"
+        append customer_irules " " $vs_irule_name
+        tmsh_modify "/ ltm virtual" "${vs} rules { $customer_irules }"
+        unset vs_irule_name
+        unset vs_irule
+        unset customer_irules
+    }
+}
+
+# =============================================
+# cleanup should be called always
+cleanup
+# =============================================
+
+if { $::general__clean == "No" } { spdt_config }}
+    			macro {}
+    			presentation{define choice yesno display "small" default "No" {"Yes", "No"}
+
+section topic {
+    message introduction "Configure the BIG-IP to work with SPDT. For detailed information and configuration, see the deployment guide https://github.com/F5Networks/shape-iapp/blob/SPDT-__TAG__/How%20to%20deploy%20a%20SPDT%20iApp%20in%20the%20BIG-IP%2C%20__TAG__.pdf"
+    message updates "Check for new versions of this template on the F5 Official iApp Github repository: https://github.com/F5Networks/shape-iapp/releases"    
+    message version "v2.0.0"
+}
+
+section general {
+    yesno clean
+    optional (clean == "No") {
+        yesno kill_switch
+        optional (kill_switch == "Yes") {
+            message note "Kill switch is active. No data is cloned or Logged"
+        }
+    }
+}
+
+optional (general.clean == "No") {
+    section settings {
+        choice operation_mode default "Log" display "medium" {"Log", "Clone"}
+        optional (operation_mode == "Log") {
+            choice deployment_mode default "Cloud" display "medium" {"On Premise", "Cloud"}
+            string tenant_id display "medium" required
+        }
+
+        string pool_member required validator "IpOrFqdn" display "large"
+        choice health_check default "No" display "small" {"Yes", "No"}
+    }
+
+    section vs_config {
+        message note "Your virtual server must have an HTTP profile attached to it."
+        multichoice vs display "large" tcl {
+            package require iapp 1.3.0
+            set ::choices "[iapp::get_items ltm virtual]"
+            return [iapp::safe_display ::choices]
+        }
+    }
+
+    section advanced_features {
+        optional (settings.operation_mode == "Log") {
+            choice source_ip display "large" default "Source IP" {"Source IP", "X-Forwarded-For", "True-Client-IP", "Custom Header"}
+            optional (source_ip == "Custom Header") {
+                string source_ip_header_name required
+            }
+        }
+
+        optional (settings.operation_mode == "Clone") {
+            choice xff default "Yes" display "small" {"Yes", "No"}
+            message note "HTTP profile has the ability to insert XFF value. make sure you do not enable both."
+        }
+
+        optional (settings.operation_mode == "Clone" || (settings.operation_mode == "Log" && settings.deployment_mode == "Cloud")) {
+            string vip2vip_ip display "medium" validator "IpOrFqdn" default "1.2.3.4" required
+        }
+    }
+}
+
+text {
+    # **** General ****
+    general "General"
+    general.clean "Clean Before Deletion"
+    general.kill_switch "Kill Switch "
+    general.note "Note"
+
+    # ===========================================================
+    # =============== settings Section ==========================
+    # ===========================================================
+    settings "SPDT Settings"
+    settings.operation_mode "Operation Mode"
+    settings.deployment_mode "Deployment Mode"
+    settings.pool_member "SPDT Pool Member (either IP or FQDN)"
+    settings.health_check "Add Health Check"
+    settings.tenant_id "Tenant ID"
+
+    # ===========================================================
+    # =============== topic Section =============================
+    # ===========================================================
+    topic "Welcome to the iApp template for SPDT"
+    topic.introduction "Introduction"
+    topic.updates "Check For Updates"
+    topic.version "Template Version:"
+
+    # ===========================================================
+    # =============== vs config Section =========================
+    # ===========================================================
+    vs_config "Virtual Server Configuration"
+    vs_config.note "Note"
+    vs_config.vs "Application Virtual Server"
+
+    # ===========================================================
+    # =============== Advanced Features Section =================
+    # ===========================================================
+    advanced_features "Advanced Features"
+    advanced_features.source_ip "Client IP Source"
+    advanced_features.source_ip_header_name "Source IP Header Name"
+    advanced_features.xff "Rewrite XFF Header with Connecting IP"
+    advanced_features.note "Note"
+    advanced_features.vip2vip_ip "Encrypting Virtual Server IP"
+}
+}
+    			role-acl none
+    			run-as none
+    		}
+    	}
+    	description none
+    	ignore-verification false
+    	requires-bigip-version-max none
+    	requires-bigip-version-min 12.1.0
+    	requires-modules { ltm }
+    	signing-key none
+    	tmpl-checksum none
+    	tmpl-signature none
+    }

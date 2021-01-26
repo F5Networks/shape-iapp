@@ -1,0 +1,1291 @@
+sys application template F5.apg.analytics {
+    	actions {
+    		definition {
+    			html-help {
+<p><b>Analytic Products iApp Template</b></p>
+<p>This template creates a complete configuration optimized for the APG application</p>
+<ul>
+  <li>Before you can configure the BIG-IP to work with APG application, ensure that the APG cluster up and running.</li>
+  <li>For a complete walkthrough of this iApp, as well as detailed information and help, see <b>https://f5cloudservices.zendesk.com/hc/en-us/article_attachments/360102924593/Deploy_Analytic_Products_iApp_Template_in_BIG-IP__v2.0.0.pdf</b></li>
+</ul>
+
+
+<p>
+<h6>iApp Settings</h6>
+<ul>
+    <li><b>Configuration Level:</b> Choose a configuration level, either Basic or Advanced.</li>
+    <li><b>Clean Before Deletion:</b> Set to Yes to permanently delete the iApp. To complete deletion, click Finished and then delete the iApp from the iApp list at iApps>Application Services>Applications.</li>
+    <li><b>Activate Kill-Switch:</b> Set to Yes to disable, but not permanently delete the iApp. When the iApp is disabled, HTTP requests are sent to the web application’s server directly without any intervention from <b>Device ID+</b>, <b>SAFE</b> or <b>Recognize</b>.</li>
+</ul>
+
+<h6>iApp Settings</h6>
+<ul>
+    <li>The iApp will be applied on every product where you select <b>Yes</b>.</li>
+</ul>
+
+<h6>JS Injection Configuration</h6>
+<ul>
+    <li><b>JS URL:</b>Enter the path you received from the F5 cloud services portal (or from F5 support) for the JS injection.</li>
+    <li><b>Location for JS Injection:</b> From the drop-down list, select a location in the HTML code of your webpage for the JS Injection.</li>
+    <li><b>Script Attribute:</b> Choose an attribute that is added at the end of the injected JS, either Async, Sync or Defer. This attribute determines how the JavaScript is loaded and executed.</li>
+    <li><b>Inject JS in Specific Webpages Only:</b> Select Yes if you want to inject the JS in specific webpages of your web application. Select No to inject the JS in all webpages of your web application.</li>
+    <li><b>JS Injection Paths:</b> If you set Inject JS in Specific Webpages Only = Yes, enter here the <b>relative</b> paths of the webpages in your application to receive the JS injections.</li>
+    <li><b>Exclude JS Injection from Specific Webpages:</b> Select Yes if you want to exclude the JS from specific webpages in your web application.</li>
+    <li><b>JS Excluded Paths:</b> If you set Exclude JS injection from specific webpages = Yes, enter here the <b>relative</b> paths of the webpages in your application where the JS injections should be excluded.</li>
+</ul>
+<h6>Cookie Decryption and Processing</h6>
+<li><b>Note:</b> If you are configuring an iApp for the Device ID+ product only, Cookie Decryption and Processing settings are not relevant.</li>
+<ul>
+    <li><b>Endpoints:</b> Enter here the paths to the web pages on which you want to enable the product(s) functionality and recommendations.. Paths must start with ‘/’. If you configured at least one endpoint, you must assign a value for Encryption Key for Cookie Decryption and Processing to work.</li>
+    <b>Note:</b> Endpoints are not case sensitive. Regardless of whether you use upper- or lower-case letters, all letters are set to lower case.
+    <li><b>Product:</b> If you are creating an iApp for both SAFE and Recognize products, select on which product (SAFE, Recognize, or both) to apply the endpoint..</li>
+    <li><b>Encryption Key:</b> Enter the encryption key you received from F5 for the recommendation cookie. The key must be base64 encoded.</li>
+    <li><b>SAFE Header Name to Add:</b> Assign a header name for the fraud recommendation header, or use the default header name.</li>
+    <li><b>Recognize Header Name to Add:</b> Assign a header name for the device category header, or use the default header name.</li>
+</ul>
+<h6>Pool Configuration</h6>
+<ul>
+    <li><b>Cookie Persistence for the Service Pool:</b> Select Enable if, after initial load‑balancing, you want HTTP requests of the same session always sent to the same pool member in the Service Pool. Select Disable if you want the BIG-IP to perform standard load balancing.</li>
+    <li><b>Domain:</b> If you entered a relative path in JS URL, enter here a domain to receive HTTP requests, or use the default value. If you used a full path, the domain of the full path is automatically used.</li>
+    <li><b>Add HTTP Health Check:</b> Choose whether to perform the HTTP Health Check on the entire pool. The HTTP Health Check is performed in intervals of 5 seconds. If you activate the health check, the following related settings are displayed:</li>
+    <b>Liveness Path:</b> The path to the site where the health check will be performed on the entire pool.
+    </br><b>Port:</b> The port on which the health check is performed.
+    </br><b>Response Code:</b> Enter the code that will indicate a successful health check result in the response from the site that was checked.
+</ul>
+<h6>Virtual Server Configuration</h6>
+<ul>
+    <li><b>Application’s Virtual Server(s) to Protect:</b> Select your web application's virtual server(s). Selecting at least one virtual server is mandatory.</li>
+</ul>
+<h6>Advanced Features Configuration</h6>
+<ul>
+    <li><b>Add Connecting IP to Headers:</b> Select <b>Yes</b> to add the connecting IP to the XFF header and to add an Analytic Header that includes the connecting IP.</li>
+    <li><b>Choose a Parent Server-Side SSL Profile for the Service Pool:</b> Select an SSL profile (or use the default) that will be attached to a new virtual server for routing traffic to the Service Pool. Selecting an SSL profile here is mandatory, and only one SSL profile can be selected..</li>
+    <li><b>Encrypting Virtual Server IP:</b> A default IP is assigned. If you have a virtual server already configured to this IP, assign a different IP here.</li>
+    <li><b>Use SNI:</b> Select Yes to use Server Name Indication (SNI) for pool members. </li>
+    <li><b>Enable Debug:</b> Select Yes to enable debug logs. </li>
+</ul>
+</p>
+}
+    			implementation {
+tmsh::log_dest file
+tmsh::log_level crit
+tmsh::include "f5.app_utils"
+
+
+#********************* Global Variables ***********************
+set ::iapp_name $tmsh::app_name
+set folder [tmsh::pwd]
+set ::partition [lindex [split $folder /] 1]
+set ::iapp_full_name "/$partition/$::iapp_name"
+set ::apg_irule_name "$::iapp_full_name\_APG_iRule"
+set ::html_js_rule_name "$::iapp_full_name\_JSRule"
+set ::html_iojs_rule_name "$::iapp_full_name\_IOJSRule"
+set ::apg_inject_html_profile_name "$::iapp_full_name\_JsHtml"
+set ::iapp_oneconnect "$::iapp_full_name\_oneconnect"
+set ::html_before_script_rule "$::iapp_full_name\_prepened_script"
+set ::persist_cookie_name "$::iapp_full_name\_persist_cookie"
+set ::sni_profile_name "$::iapp_full_name\_serverssl"
+set ::app_obj ""
+set ::use_fetched_adv 0
+
+puts "======================== $tmsh::app_name LOG ============================="
+puts "iapp name                      : $iapp_name"
+puts "apg_irule_name                 : $apg_irule_name"
+puts "html_js_rule_name              : $html_js_rule_name"
+puts "html_iojs_rule_name            : $html_iojs_rule_name"
+puts "apg_inject_html_profile_name   : $apg_inject_html_profile_name"
+puts "iapp_oneconnect                : $iapp_oneconnect"
+puts "html_before_script_rule        : $html_before_script_rule"
+puts "persist_cookie_name            : $persist_cookie_name"
+puts "sni_profile_name               : $sni_profile_name"
+puts "=========================================================================="
+
+
+proc fetch_advanced {app_obj obj} {
+    set list [tmsh::get_field_value $app_obj $obj]
+    foreach item $list {
+        # Ignore empty lists which are created by default
+        catch {
+            set dict_adv([tmsh::get_name $item]) [tmsh::get_field_value $item value]
+        }
+    }
+    return [array get dict_adv]
+}
+
+# html tag match irule event. This section will insert to the iRule if needed.
+set ::html_tag_matched_irule {
+# This event is relevant only when js injection required location is before script tag.
+when HTML_TAG_MATCHED {
+    if { ![info exists is_js_injected] } {
+        if { $debug }{log local0. "prepend JS before [HTML::tag name] tag"}
+        HTML::tag prepend __SNIPPET__
+        set is_js_injected 1
+    }
+}
+}
+
+######################################
+######## APG iRule Start ########
+set ::apg_irule	{
+proc base64url_decode { var_b64_url } {
+  set var_b64 "[string map [list - + _ \/ ] $var_b64_url]"
+  if { [string length $var_b64] % 4 != 0 } {
+      append var_b64 [string repeat = [expr {4 - [string length $var_b64] % 4}]]
+  }
+  return [b64decode $var_b64]
+}
+
+when RULE_INIT {
+    set b64_key "__ENC_KEY__"
+    # using static variable for the key as there is a single key per customer.
+    # if at some point, multiple key support is required (per app key), we will need to use local variable
+    # and live with the performance degradation.
+    # using global variable is not accepted. see https://support.f5.com/csp/article/K13033
+    set static::key 0
+
+    if {$b64_key != 0} {
+        set static::key [b64decode $b64_key]
+    }
+}
+
+# Set the lowest priority to not disturb the Customer iRules
+priority 1000
+
+proc route_traffic {use_different_ssl apg_pool debug} {
+     # This variable used when customer choose to use different ssl for APG pools
+    set ssl_vs_name  __SSL_VS_NAME__
+    if { $use_different_ssl } {
+        persist none
+        # In case a different ssl is required for APG pool, disable SSL on serverside to pass data to the encrypting VS
+        __DISABLE_SSL__
+        virtual $ssl_vs_name
+        if { $debug }{ log local0. "successfully routed to $ssl_vs_name" }
+    } else {
+        __COOKIE_PERSIST__
+        pool $apg_pool
+    }
+}
+
+proc request_js {use_different_ssl apg_pool kill_switch http_path debug} {
+    # If request is for 1JS or telemetry request, route it to APG Pool
+    if { $debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: Got JS request: ${http_path}" }
+    # Test if the pool has active members before sending traffic
+    if  { [active_members ${apg_pool}] >= 1 && $kill_switch == 0 } {
+        snat automap
+        call route_traffic $use_different_ssl ${apg_pool} $debug
+        return 0
+    } else {
+        # If the ShapeShifter pool is not available, then no need to forward this to origin, send back an empty 200 OK
+        # Can also put an empty file at Origin for the js request for occasions when the iRule is disabled.
+        if { $debug }{ log local0. "[IP::client_addr]:[TCP::client_port]: JS URI, but ${apg_pool} pool is down or Kill Switch is active!!! Sent HTTP 200 response"}
+        HTTP::respond 200 noserver Cache-Control "no-cache"
+        return 1
+    }
+}
+
+when SERVER_CONNECTED {
+    # Disable SSL serverside profile for SSL offload use cases
+    if {[LB::server port] == 80 } {
+        __DISABLE_SSL__
+    }
+}
+
+proc handle_field {field_name cookie_value alg header_name debug} {
+    set val [lindex [regexp -inline [format {\\"%s\\"\\s*:\\s*\\"([^,]*?)\\"} $field_name] $cookie_value] 1]
+    set iv [call base64url_decode [substr $val 0 24]]
+    set enc_data [call base64url_decode [substr $val 24]]
+
+    if { $iv == "" || $enc_data == "" } {
+        error "Wrong cookie format"
+    }
+
+    set dec_data [CRYPTO::decrypt -alg $alg -key $static::key -iv $iv $enc_data]
+    if { $debug } { log local0. "$field_name decrypted content: $dec_data" }
+    HTTP::header insert $header_name $dec_data
+}
+
+when CLIENT_ACCEPTED {
+    set ip_header "x-iapp-real-ip"
+    set cookie_name "_imp_apg_r_"
+    set fr_header "__FR_HEADER__"
+    set sr_header "__SR_HEADER__"
+    set cookie_endpoints __C_EP_DG__
+    set domain "__DOMAIN__"
+    set is_did __IS_DID__
+    set is_safe __IS_SAFE__
+    set is_rec __IS_REC__
+    # Log debug messages (1=yes, 0=no)
+    # Set to 0 when not debugging this iRule
+    set debug __DEBUG__
+    
+    set JS_DG __JS_DG__
+    # Entry points that should be injected with 1JS
+    set included_entry_points __INCLUDED_ENTRY_POINTS_DG__
+    # Inject 1JS to specific path
+    set inject_specific_path __JS_SPECIFIC_PATH__
+    # Entry points that should be excluded from 1JS injection
+    set excluded_entry_points __EXCLUDED_ENTRY_POINTS_DG__
+    # Exclude 1JS Injection from specific paths
+    set inject_exclude_path __JS_EXCLUDED_PATH__
+    # Set 'Rewrite XFF header with Connecting IP' variable
+    set rewrite_xff __XFF__
+
+    # Set 'Add different server SSL profile for pool variable
+    # If true then we split traffic into 2 different VS (client<->bip<->ws, bip<->APG)
+    set use_different_ssl __USE_DIFFERENT_SSL__
+    # APG pool for 1JS routing
+    set apg_pool __APG_POOL__
+    # Kill switch/bypass of API (1=yes, 0=no)
+    set kill_switch __KILL_SWITCH__
+}
+
+when HTTP_REQUEST {
+
+    # bypass the injection if needed (HTML::disable)
+    set bypass 0
+
+    # Remove trailing '/' from HTTP::path (if no trailing slash, nothing will happened)
+    set http_path [string tolower [HTTP::path -normalized]]
+    if { not ( ${http_path} equals "/" ) } { set http_path [string trimright ${http_path} "/"] }
+    # JavaScript path
+    set js_path __JS_PATH__
+    
+    #Save the name of virtual's default pool
+    set app_pool [LB::server pool]
+    __APP_PERSIST_NONE__
+    if { $kill_switch } {
+        if { $debug }{ log local0. "Kill switch activated, suspending processing."}
+        HTML::disable
+        return
+    }
+
+    # Disable the HTML if injection configured to specific pages
+    if { $inject_specific_path } {
+        HTML::disable
+        foreach {endpoint} [class names $included_entry_points] {
+            if { ${http_path} matches_glob $endpoint } {
+                HTML::enable
+            }
+        }
+    }
+    if { $inject_exclude_path } {
+        foreach {endpoint} [class names $excluded_entry_points] {
+            if { ${http_path} matches_glob $endpoint } {
+              HTML::disable
+            }
+        }
+    }
+
+    if { [class match [string tolower $js_path] starts_with __API_JS_DG__] || ( [HTTP::method] eq "GET" && [class match $js_path equals $JS_DG]) } {
+        # Insert XFF header
+        if { $rewrite_xff } {
+            HTTP::header insert X-Forwarded-For [IP::client_addr]
+            HTTP::header insert $ip_header [IP::client_addr]
+        }
+        set bypass 1
+        # If request is for 1JS or JS API call, route it to APG pool and get out
+        HTTP::host $domain
+        if { [call request_js $use_different_ssl $apg_pool $kill_switch ${http_path} $debug] } {
+            return
+        }
+    } else {
+        # No need for cookie processing
+        if { (!$is_safe && !$is_rec) || $cookie_endpoints matches 0 } {return}
+
+        if { [HTTP::header exists $fr_header] } {
+            if { $debug } { log local0. "WARNING: Found $fr_header! removing" }
+            HTTP::header remove $fr_header
+        }
+        if { [HTTP::header exists $sr_header] } {
+            if { $debug } { log local0. "WARNING: Found $sr_header! removing" }
+            HTTP::header remove $sr_header
+        }
+
+        if { [HTTP::cookie exists $cookie_name]} {
+            if { $static::key != 0 } {
+                set alg "aes-128-cbc"
+                foreach {endpoint} [class names $cookie_endpoints] {
+                    set fields [list]
+                    set value [class match -value $endpoint contains $cookie_endpoints]
+                    if { $is_safe && ( $value matches "safe" || $value matches "all" ) } {
+                        lappend fields fr
+                    }
+                    if { $is_rec && ( $value matches "recognize" || $value matches "all" ) } {
+                        lappend fields c
+                    }
+                    if {${http_path} matches_glob $endpoint} {
+                        set cookie_value [URI::decode [HTTP::cookie value $cookie_name]]
+                        foreach { field_name } $fields {
+                            catch {
+                                if { $field_name == "fr" } {
+                                    call handle_field $field_name $cookie_value $alg $fr_header $debug
+                                } else { call handle_field $field_name $cookie_value $alg $sr_header $debug }
+                            } error
+                            if { $error != "" && $debug } {
+                                log local0. "Failed to handle $field_name: $error"
+                            }
+                        }
+
+                        break
+                    }
+                }
+            }
+            # remove cookie only if DID is not enabled
+            if { !$is_did } {
+                HTTP::cookie remove $cookie_name
+            }
+        }
+    }
+}
+
+when HTTP_RESPONSE {
+    switch [HTTP::status] {
+        200 { }
+        201 { }
+        202 { }
+        203 { }
+        204 { }
+        205 { }
+        206 { }
+        207 { }
+        208 { }
+        226 { }
+        default {
+            if { $debug }{ log local0. "Received [HTTP::status], disabled injection" }
+            HTML::disable
+        }
+    }
+    # Clear the injected 1JS flag for each response.
+    if {[info exists is_js_injected]} {
+        unset is_js_injected
+    }
+
+    # Do not inject javascript for APG interstitials
+    if { ([info exists bypass] && $bypass)} {
+        HTML::disable
+    }
+}
+
+}
+######## APG iRule END ########
+#####################################
+
+
+proc tmsh_create { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_create "\"$component\"" "\"$arguments\""
+}
+
+proc tmsh_modify { component arguments } {
+    regsub -all {\"} $arguments "\\\"" arguments
+    regsub -all {\[} $arguments "\\\[" arguments
+    regsub -all {\]} $arguments "\\\]" arguments
+    tmsh::run_proc f5.app_utils:do_tmsh_modify "\"$component\"" "\"$arguments\""
+}
+
+# Search on given vs for profile from given type
+proc find_profile {vs_obj type sub_type} {
+    set found false
+    set fomated_type $type
+
+    if { $type == "profile" } {set fomated_type "profiles"}
+
+    catch {
+        foreach {profile} [tmsh::get_config /ltm $type $sub_type] {
+            foreach {vs_profile} [tmsh::get_field_value $vs_obj $fomated_type] {
+                if {[lindex $vs_profile 1] == [lindex $profile 3]} {
+                    set found true
+                    return [lindex $vs_profile 1]
+                }
+            }
+        }
+    } result
+    if { $found } {
+        return $result
+    }
+    return ""
+}
+
+proc set_apg_vs {vs_obj} {
+    if {$::advanced_serverssl_profile != ""} {
+        set apg_vs_port 443
+        # Set dummy address for the ssl virtual server since the request route via iRule and it is internal usage only
+        set apg_vs_dumy_addr $::advanced_v2v_ip
+        set apg_vs_pool $::apg_pool_name
+        set snat_type "none"
+
+        # Copy snat_type from original vs
+        catch { set snat_type [tmsh::get_field_value $vs_obj source-address-translation.type] }
+
+        # Copy http profile
+        set http_profile [find_profile $vs_obj "profile" "http"]
+
+        # Copy one-connect profile
+        set oneconnect_profile [find_profile $vs_obj "profile" "one-connect"]
+        if { $oneconnect_profile == "" } { set oneconnect_profile $::iapp_oneconnect }
+        # create server-ssl profile
+        tmsh::create ltm profile server-ssl $::sni_profile_name \{ defaults-from $::advanced_serverssl_profile server-name none \}
+        # create VS
+        tmsh_create "/ ltm virtual" "${::ssl_vs_name} {description \"Server Side SSL VS\" source 0.0.0.0/0 destination ${apg_vs_dumy_addr}:$apg_vs_port profiles replace-all-with { ${http_profile} ${oneconnect_profile} { context all } $::sni_profile_name { context serverside } } pool $apg_vs_pool }"
+        if { $::advanced_sni == "Yes" } {
+            tmsh::modify ltm profile server-ssl $::sni_profile_name \{ server-name $::fqdn \}        
+        }
+        # Set default cookie persistence profile if selected
+        if {$::cookie_persistence == "Enable"} {tmsh_modify "/ ltm virtual" "${::ssl_vs_name} persist replace-all-with { cookie }"}
+        # 'snat' type requires snat pool so need to differentiate from other cases
+        if {$snat_type != "snat"} {
+            tmsh_modify "/ ltm virtual" "${::ssl_vs_name} { source-address-translation { type $snat_type } }"
+        } else {
+            set snat_pool [tmsh::get_field_value $vs_obj source-address-translation.pool]
+            tmsh_modify "/ ltm virtual" "${::ssl_vs_name} { source-address-translation { type $snat_type pool $snat_pool } }"
+        }
+    }
+}
+
+proc detach_irule {vs_name} {
+    if {$vs_name != ""} { tmsh_modify "/ltm virtual" "$vs_name rules none" }
+}
+
+proc supports_ssl {vs_obj side} {
+    set found false
+    catch {
+        foreach {profile} [tmsh::get_field_value $vs_obj profiles] {
+            foreach {ssl_p} [tmsh::get_config /ltm profile ${side}-ssl] {
+                if { [tmsh::get_name $ssl_p] == [tmsh::get_name $profile]} {
+                   set found true
+                   break
+                }
+            }
+            if { $found == true } { break }
+        }
+    }
+    return $found
+}
+
+# Create HTML rule for 1JS injection. These rules will attached to the created HTML profile
+proc create_injection_rule {snippet rule_name} {
+    if {[get_tag_name $::injection_location] == "script"} {
+        # Append the rule to the HTML profile
+        tmsh_modify "/ ltm profile" "html ${::apg_inject_html_profile_name} rules add { ${::html_before_script_rule} }"
+        regsub __SNIPPET__ $::html_tag_matched_irule \{${snippet}\} ::html_tag_matched_irule
+        regsub __HTML_TAG_MATCHED__ $::apg_irule ${::html_tag_matched_irule} ::apg_irule
+    } else {
+        regsub -all "\"" $snippet "\\\"" snippet
+        tmsh::create ltm html-rule [get_tag_location $::injection_location] ${rule_name} \{ action \{ text \"$snippet\" \} match \{ tag-name [get_tag_name $::injection_location] \} \}
+        regsub __HTML_TAG_MATCHED__ $::apg_irule {} ::apg_irule
+        # Append the rule to the HTML profile
+        tmsh_modify "/ ltm profile" "html ${::apg_inject_html_profile_name} rules add { ${rule_name} }"
+    }
+}
+
+proc detach_html_rules {} {
+    # html_profile does not exist until first deployment is completed
+    set html_profiles [tmsh::get_config /ltm profile html]
+    foreach {html_profile} $html_profiles {
+        set html_profile_name [lindex $html_profile 3]
+        catch { tmsh_modify "/ ltm profile" "html ${html_profile_name} rules delete { $::html_js_rule_name }" }
+        catch { tmsh_modify "/ ltm profile" "html ${html_profile_name} rules delete { $::html_iojs_rule_name }" }
+        catch { tmsh_modify "/ ltm profile" "html ${html_profile_name} rules delete { ${::html_before_script_rule} }" }
+    }
+}
+
+proc initiate_default_vars {} {
+    set ::inject_type "async defer"
+    set ::injection_location "After <head>"
+    set ::cookie_persistence "Disable"
+    set ::pool_check "No"
+    if { $::product_safe || $::product_rec } {
+        set ::cookie_key $::cookie__enc_key
+        if { $::product__rec == "Yes" } {
+            set ::header_rec "x-apg-sr"
+        }
+        if { $::product_safe } {
+            set ::header_safe "x-safe-fr"
+        }
+    }
+    set ::js_include_endpoint "No"
+    set ::js_exclude_endpoint "No"
+    set ::advanced_serverssl_profile "/Common/serverssl"
+    set ::advanced_xff "Yes"
+    set ::advanced_sni "Yes"
+    set ::advanced_v2v_ip "1.2.3.4"
+    set ::advanced_debug "No"
+}
+
+proc config_apg_pool {} {
+    # no effect if pool already exists
+    tmsh_create "/ ltm pool" "${::apg_pool_name}"
+    # Make sure we have no members from prev configuration (in case pool already exists)
+    tmsh_modify "/ ltm pool" "${::apg_pool_name} members delete { all }"
+
+    tmsh_create "/ ltm node" "$::fqdn fqdn { name $::fqdn autopopulate enabled }"
+    tmsh_modify "/ ltm pool" "${::apg_pool_name} members add { $::fqdn:443 {fqdn { autopopulate enabled }}}"
+    if { $::pool_check == "Yes" } {
+        tmsh_create "/ ltm monitor tcp" "$::monitor { adaptive disabled defaults-from /Common/tcp destination *:$::pool_port interval 5 recv $::pool_rc recv-disable none send \"GET $::pool_url\ HTTP/1.0\r\nConnection: Close\r\n\r\n\" time-until-up 0 timeout 16 }"
+        tmsh_modify "/ ltm pool" "${::apg_pool_name} monitor $::monitor"
+    } else {
+        catch {
+            tmsh_modify "/ ltm pool" "${::apg_pool_name} monitor default"
+        }
+    }
+}
+
+proc init {} {
+    set ::fqdn "us.gimp.zeronaught.com"
+    set ::header_safe "x-safe-fr"
+    set ::header_rec "x-apg-sr"
+    set ::product_did [iapp::is ::product__did Yes]
+    set ::product_safe [iapp::is ::product__safe Yes]
+    set ::product_rec [iapp::is ::product__rec Yes]
+    # Exctract the js injection path from the JS URL
+    regsub {^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/?\n]+)} $::js_injection__injection_path {} ::injection_path
+    regexp {^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/?\n]+)} $::js_injection__injection_path full_path domain
+    regexp {([^\/]+)(?=\.\w+$)} $::injection_path -> ::script_name
+
+    # Check if first creation or not
+    catch { set ::app_obj [lindex [tmsh::get_config sys application service $::iapp_name ] 0] }
+    # Create duplicated table objects in config
+    catch {
+        if {$::app_obj == ""} {
+            tmsh::modify sys application service $::iapp_name \{ tables add \{ adv_js_injection__excluded_ep \{ column-names \{ endpoint \} rows none \} \} \}
+            tmsh::modify sys application service $::iapp_name \{ tables add \{ adv_js_injection__injected_ep \{ column-names \{ endpoint \} rows none \} \} \}
+        }
+    }
+
+    # In basic mode, we should check if the configuration had previous advanced configurations.
+    # If so, we should keep it and reconfig with the previous parameters
+
+    # Check if Advanced variables exist in config, Means we already visited Advanced at least once.
+     if { $::iapp_settings__config_selection == "Basic" } {
+        if { $::product_safe } {
+            catch { set var_exist [tmsh::get_field_value [lindex [tmsh::get_field_value [lindex [tmsh::get_config sys application service $tmsh::app_name { variables { cookie__header_name_safe { value }}}] 0] variables] 0] value] }
+        } elseif {  $::product_rec } {
+            catch { set var_exist [tmsh::get_field_value [lindex [tmsh::get_field_value [lindex [tmsh::get_config sys application service $tmsh::app_name { variables { cookie__header_name_rec { value }}}] 0] variables] 0] value] }
+        } else {
+            catch { set var_exist [tmsh::get_field_value [lindex [tmsh::get_field_value [lindex [tmsh::get_config sys application service $tmsh::app_name { variables { advanced_features__xff { value }}}] 0] variables] 0] value] } }
+        if { [info exists var_exist] } {
+            set ::use_fetched_adv 1
+        }
+    }
+    if {$::iapp_settings__config_selection == "Advanced" } {
+        set ::js_include_endpoint $::js_injection__inject_by_endpoint
+        set ::js_exclude_endpoint $::js_injection__exclude_endpoint
+        if { [info exists ::app_obj] && $::app_obj != ""} {
+            puts "$tmsh::app_name advanced settings are displayed"
+            set ::app_obj [lindex [tmsh::get_config sys application service $tmsh::app_name ] 0]
+            # Inside Advanced Settings, adding table fields to config
+            set table_list [tmsh::get_field_value $::app_obj tables]
+
+            foreach table $table_list {
+                set name [tmsh::get_name $table]
+                set tables_dict($name) 0
+            }
+            foreach table $table_list {
+                set name [tmsh::get_name $table]
+                # Custom tables
+                if { (![string match "adv_*" $name]) && (![string match "*cookie*" $name]) } {
+                    set var_name ::$name
+                    eval "set name_value $$var_name"
+                    set end ""
+                    set is_endpoint [string match "*endpoint*" $name_value]
+                    foreach item $name_value {
+                        if { $is_endpoint } {
+                            append end "{ row { [tmsh::get_field_value $item endpoint] } } "
+                        }
+                    }
+                    if { $is_endpoint } {
+                        tmsh::modify sys application service $::iapp_name \{ tables modify \{ adv_${name} \{ rows \{ ${end} \} \} \} \}
+                    }
+                }
+            }
+        } else {
+            # Inside Advanced for the first time
+            puts "$tmsh::app_name advanced settings init"
+            if {$::js_include_endpoint == "Yes"} {
+                set include_group ""
+                foreach item $::js_injection__injected_ep {
+                    set tmp_path $item
+                    regsub "endpoint" ${tmp_path} "row {" tmp_path
+                    append include_group "$tmp_path } "
+                }
+                regsub -all {\{} $include_group "\\\{" include_group
+                regsub -all {\}} $include_group "\\\}" include_group
+                tmsh::modify sys application service $::iapp_name \{ tables modify \{ adv_js_injection__injected_ep \{ rows \{ ${include_group} \} \} \} \}
+            }
+            if {$::js_exclude_endpoint == "Yes"} {
+                set exclude_group ""
+                foreach item $::js_injection__excluded_ep {
+                    set tmp_path $item
+                    regsub "endpoint" ${tmp_path} "row {" tmp_path
+                    append exclude_group "$tmp_path } "
+                }
+                regsub -all {\{} $exclude_group "\\\{" exclude_group
+                regsub -all {\}} $exclude_group "\\\}" exclude_group
+                tmsh::modify sys application service $::iapp_name \{ tables modify \{ adv_js_injection__excluded_ep \{ rows \{ ${exclude_group} \} \} \} \}
+            }
+        }
+        set ::inject_type [string map {\" {}} [string tolower $::js_injection__script_attribute]]
+        set ::injection_location [string map {\" {}} $::js_injection__injection_location]
+        set ::cookie_persistence $::pool__cookie_persistence
+        set ::pool_check $::pool__check
+        if {$::pool_check == "Yes"} {
+            set ::pool_port $::pool__port
+            set ::pool_rc $::pool__rc
+            set ::pool_url $::pool__url
+        }
+        if {$::js_include_endpoint == "Yes"} {
+            set ::js_included_ep $::js_injection__injected_ep
+        }
+        if {$::js_exclude_endpoint == "Yes"} {
+            set ::js_excluded_ep $::js_injection__excluded_ep
+        }
+         if { $::product_safe || $::product_rec } {
+            set ::cookie_key $::cookie__enc_key
+            if { $::product_safe } {
+                set ::header_safe $::cookie__header_name_safe
+            }
+            if { $::product_rec } {
+                set ::header_rec $::cookie__header_name_rec
+            }
+        }
+        set ::fqdn $::pool__fqdn
+        set ::advanced_serverssl_profile $::advanced_features__serverssl
+        set ::advanced_sni $::advanced_features__use_domain_as_sni
+        set ::advanced_xff $::advanced_features__xff
+        set ::advanced_v2v_ip $::advanced_features__vip2vip_ip
+        set ::advanced_debug $::advanced_features__debug
+    } else {
+        if {$::use_fetched_adv} {
+            puts "$tmsh::app_name in Basic mode, fetching stored advanced config"
+            # Inside Basic settings, fetching from config
+            set table_list [tmsh::get_field_value $::app_obj tables]
+            foreach table $table_list {
+                set row_values ""
+                set name [tmsh::get_name $table]
+                # Skip custom tables without rows
+                catch {
+                    # Custom tables
+                    if { [string match "adv_*" $name] } {
+                        set field [tmsh::get_field_value $table column-names]
+                        set rows [tmsh::get_field_value $table rows]
+                        if { [info exists rows] } {
+                            foreach row $rows {
+                                append row_values "[tmsh::get_field_value $row row] "
+                            }
+                        }
+                        set dict_adv_tables($name) "$field>$row_values"
+                    }
+                }
+            }
+            array set advanced_list [fetch_advanced $::app_obj "lists"]
+            array set advanced_vars [fetch_advanced $::app_obj "variables"]
+            set ::inject_type [string map {\" {}} [string tolower $advanced_vars(js_injection__script_attribute)]]
+            set ::injection_location [string map {\" {}} $advanced_vars(js_injection__injection_location)]
+            set ::cookie_persistence $advanced_vars(pool__cookie_persistence)
+            set ::pool_check $advanced_vars(pool__check)
+            if {$::pool_check == "Yes"} {
+                set ::pool_port $advanced_vars(pool__port)
+                set ::pool_rc $advanced_vars(pool__rc)
+                set ::pool_url $advanced_vars(pool__url)
+            }
+            if { $::product_safe || $::product_rec } {
+                set ::cookie_key $::cookie__enc_key
+                if { $::product_safe } {
+                    catch { set ::header_safe $advanced_vars(cookie__header_name_safe) }
+                }
+                if { $::product_rec } {
+                    catch { set ::header_rec $advanced_vars(cookie__header_name_rec) }
+                }
+            }
+            set ::js_include_endpoint $advanced_vars(js_injection__inject_by_endpoint)
+            set ::js_exclude_endpoint $advanced_vars(js_injection__exclude_endpoint)
+            if {$::js_include_endpoint == "Yes"} {
+                set ::js_included_ep $dict_adv_tables(adv_js_injection__injected_ep)
+            }
+            if {$::js_exclude_endpoint == "Yes"} {
+                set ::js_excluded_ep $dict_adv_tables(adv_js_injection__excluded_ep)
+            }
+            set ::fqdn $advanced_vars(pool__fqdn)
+            set ::advanced_serverssl_profile $advanced_list(advanced_features__serverssl)
+            set ::advanced_sni $advanced_vars(advanced_features__use_domain_as_sni)
+            set ::advanced_xff $advanced_vars(advanced_features__xff)
+            set ::advanced_v2v_ip $advanced_vars(advanced_features__vip2vip_ip)
+            set ::advanced_debug $advanced_vars(advanced_features__debug)
+        } else {
+            puts "Using defaults for Basic"
+            initiate_default_vars
+        }
+    }
+    if { [info exists domain] } {
+        set ::fqdn $domain
+    } elseif { $::fqdn == "" } {
+        set ::fqdn "us.gimp.zeronaught.com"
+    }
+    set ::cleanup $::iapp_settings__clean
+    set ::vs_config $::vs_config__vs
+    # ---------- Internal Data Groups Names -----------------------
+    set ::JS_DG "$::iapp_full_name\_Js"
+    set ::COOKIE_DG 0
+
+    # ---------- Pool Configuration -------------------------
+    set ::monitor "$::iapp_full_name.app/$::iapp_name\_Monitor"
+    set ::apg_pool_name "$::iapp_full_name.app/$::iapp_name\_ProdPool"
+    # ---------- apg VS Configuration -----------------------------
+    set ::ssl_vs_name "$::iapp_full_name.app/$::iapp_name\_apg_ssl_vs"
+
+    # Create HTML profile
+    tmsh_create "/ ltm profile" "html ${::apg_inject_html_profile_name} { app-service none content-detection disabled content-selection add { text/html text/xhtml } defaults-from /Common/html description none }"
+    tmsh_create "/ ltm html-rule" "tag-raise-event ${::html_before_script_rule} { match { tag-name script } }"
+
+    # Create one-connect profile
+    tmsh_create "/ ltm profile" "one-connect ${::iapp_oneconnect} source-mask 255.255.255.255"
+
+    # Internal Data Group to hold the path of API call from 1JS
+    set ::JS_API_DG "$::iapp_full_name\_JsApiEp"
+    set js_ep "/__imp_apg__/api/dip/ /__imp_apg__/api/imp/ /__imp_apg__/api/dc/"
+    tmsh_create "/ ltm data-group" "internal $::JS_API_DG { records replace-all-with { ${js_ep} {} } type string }"
+}
+
+proc detach_persist_profile {} {
+    foreach {vs_obj} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs_obj]
+        regsub -all "/" ${vs_name} "_" format_vs_name
+        set persist_vs_name "$::persist_cookie_name\_$format_vs_name"
+        set cookie_persist [find_profile $vs_obj "persist" "cookie"]
+        if { $cookie_persist == ${persist_vs_name} } {
+            tmsh_modify "/ ltm virtual" "$vs_name persist none"
+        }
+    }
+}
+
+# Detach all iApp components before reconfigured
+proc cleanup {} {
+    foreach {vs} [tmsh::get_config /ltm virtual] {
+        set vs_name [tmsh::get_name $vs]
+        regsub -all "/" ${vs_name} "_" format_vs_name
+        puts "========= $vs_name ==============="
+        if {[lsearch -exact [tmsh::get_field_names value $vs] "rules"] < 0} {
+            puts "No attached iRules for $vs_name"
+            continue
+        }
+        set rules_list [tmsh::get_field_value $vs rules]
+        set formated_rule_name "$::apg_irule_name\_${format_vs_name}"
+        puts "formated_rule_name: $formated_rule_name"
+        set idx [lsearch -exact $rules_list $formated_rule_name]
+        if {$idx >= 0} {
+            set rules_list [lreplace $rules_list $idx $idx]
+            detach_irule $vs_name
+        }
+        tmsh_modify "/ ltm virtual" "$vs_name rules { $rules_list }"
+
+        ## detach the HTML and oneconnect profiles from the VS
+        catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::apg_inject_html_profile_name }" }
+        catch { tmsh_modify "/ ltm virtual" "$vs_name profiles delete { $::iapp_oneconnect }" }
+    }
+    detach_html_rules
+    detach_persist_profile
+    catch {
+        tmsh::delete ltm profile html profile ${::apg_inject_html_profile_name}
+    }
+}
+
+proc config_js_injection {} {
+    detach_html_rules
+        
+    if { $::injection_path != ""} {
+        set ::js_snippet "<script id=\"_imp_apg_dip_\"  imp_apg_cid=\"$::script_name\" type=\"text/javascript\" src=\"$::injection_path\" $::inject_type ></script>"
+        create_injection_rule $::js_snippet $::html_js_rule_name
+        if {[get_tag_name $::injection_location] == "body"} {
+            tmsh_create "/ ltm html-rule" "tag-append-html ${::html_js_rule_name} { action { text \"$::js_snippet\" } match { tag-name body } }"
+            # Append the rule to the HTML profile
+            tmsh_modify "/ ltm profile" "html ${::apg_inject_html_profile_name} rules add { ${::html_js_rule_name} }"
+        }
+    }
+    if { $::injection_path != "" } {
+        if { [string first / $::injection_path] != 0 } {
+            regsub "^https?:\/\/" $::injection_path "" ::injection_path
+            puts "got absolute JS path and remove protocol: $::injection_path"
+            regsub __JS_PATH__ $::apg_irule {[HTTP::host][HTTP::path -normalized]} ::apg_irule
+        } else {
+            puts "got relative JS path: $::injection_path"
+            regsub __JS_PATH__ $::apg_irule {[HTTP::path -normalized]} ::apg_irule
+        }
+        # Insert the JS path to the Data Group
+        tmsh_create "/ ltm data-group" "internal $::JS_DG { records replace-all-with { $::injection_path { } } type string }"
+    } else {
+        regsub __JS_PATH__ $::apg_irule {[HTTP::path -normalized]} ::apg_irule
+    }
+}
+proc collect_endpoints { protected_endpoints_tbl } {
+    foreach member $protected_endpoints_tbl {
+        set data ""
+        set endpoint [string tolower [tmsh::get_field_value $member endpoint]]
+        set data [string tolower [tmsh::get_field_value $member c_prod]]
+        if { $endpoint == "" } { continue }
+        # trim the trailing slash if exist
+        if { $endpoint != "/" } {set endpoint [string trimright ${endpoint} "/"] }
+        regsub -all {\*} $endpoint {\\\*} endpoint
+        append EP_members "$endpoint { data \"$data\" }"
+
+    }
+    if { [info exists EP_members] && [string length ${EP_members}] > 0 } {
+        set ::COOKIE_DG "$::iapp_full_name\_CookieEndpoints"
+        tmsh_create "/ ltm data-group" "internal $::COOKIE_DG records add { ${EP_members}} type string"
+    }
+}
+
+proc config {} {
+    # Init the template
+    init
+
+    set INCLUDED_ENTRY_POINT_DG "$::iapp_full_name\_includedEntryPoints"
+    set EXCLUDED_ENTRY_POINT_DG "$::iapp_full_name\_excludedEntryPoints"
+    regsub __DEBUG__ $::apg_irule [iapp::is ::advanced_debug Yes] ::apg_irule
+
+    # Set domain
+    regsub __DOMAIN__ $::apg_irule $::fqdn ::apg_irule
+
+    # Collect the required safe endpoints members
+    if { $::product_safe || $::product_rec } {
+        collect_endpoints $::cookie__endpoints
+    }
+
+    # config APG pool
+    config_apg_pool
+
+    regsub __JS_DG__ $::apg_irule $::JS_DG ::apg_irule
+    regsub __INCLUDED_ENTRY_POINTS_DG__ $::apg_irule $INCLUDED_ENTRY_POINT_DG ::apg_irule
+    regsub __EXCLUDED_ENTRY_POINTS_DG__ $::apg_irule $EXCLUDED_ENTRY_POINT_DG ::apg_irule
+    regsub __APG_POOL__ $::apg_irule $::apg_pool_name ::apg_irule
+    regsub __KILL_SWITCH__ $::apg_irule [iapp::is ::iapp_settings__kill_switch Yes] ::apg_irule
+    regsub __C_EP_DG__ $::apg_irule $::COOKIE_DG ::apg_irule
+    regsub __IS_DID__ $::apg_irule $::product_did ::apg_irule
+    regsub __IS_REC__ $::apg_irule $::product_rec ::apg_irule
+    regsub __IS_SAFE__ $::apg_irule $::product_safe ::apg_irule
+    if { $::product_did && !$::product_safe && !$::product_rec} {
+        regsub __FR_HEADER__ $::apg_irule "" ::apg_irule
+        regsub __SR_HEADER__ $::apg_irule "" ::apg_irule
+        regsub __ENC_KEY__ $::apg_irule 0 ::apg_irule
+    } else {
+        if { $::product_safe } {
+            regsub __FR_HEADER__ $::apg_irule $::header_safe ::apg_irule
+        }
+        if { $::product_rec } {
+            regsub __SR_HEADER__ $::apg_irule $::header_rec ::apg_irule
+        }
+        if { $::cookie_key matches_regex {^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$} } {
+            regsub __ENC_KEY__ $::apg_irule $::cookie_key ::apg_irule
+        } else {
+            regsub __ENC_KEY__ $::apg_irule 0 ::apg_irule
+            puts "Encryption key is not valid"
+        }
+    }
+
+    regsub __API_JS_DG__ $::apg_irule $::JS_API_DG ::apg_irule
+
+    set specific_flag 0
+    set excluded_flag 0
+    # The user specific web pages (entry pages) for injection
+        if {$::js_include_endpoint == "Yes"} {
+            # Collect the injected entry points
+            set included_entry_pages ""
+            if { $::iapp_settings__config_selection == "Basic"} {set ::js_included_ep [lindex [split $::js_included_ep >] 1]}
+            foreach path $::js_included_ep {
+                if { $::iapp_settings__config_selection == "Basic"} { set endpoint $path }
+                elseif {$::iapp_settings__config_selection == "Advanced" && [info exists ::app_obj] && $::app_obj != ""} { set endpoint [tmsh::get_field_value $path endpoint] }
+                else {
+                   regexp {(\/.*[^\}])} $path -> in_ep
+                   set endpoint $in_ep
+                }
+
+                # trim trailing slash only for non root ep
+                if {$endpoint != "/"} {set endpoint [string trimright $endpoint "/"] }
+
+                if { $endpoint != "" } {
+                    append included_entry_pages "$endpoint "
+                }
+            }
+            if { $included_entry_pages != "" } {
+                regsub -all {\*} $included_entry_pages {\\\*} included_entry_pages
+                tmsh_create "/ ltm data-group" "internal $INCLUDED_ENTRY_POINT_DG records replace-all-with { $included_entry_pages} type string"
+                set specific_flag 1
+            }
+        }
+        if {$::js_exclude_endpoint == "Yes"} {
+            # Collect the excluded entry points
+            set excluded_entry_pages ""
+            if { $::iapp_settings__config_selection == "Basic"} {set ::js_excluded_ep [lindex [split $::js_excluded_ep >] 1]}
+            foreach path $::js_excluded_ep {
+                if { $::iapp_settings__config_selection == "Basic"} { set endpoint $path }
+                elseif {$::iapp_settings__config_selection == "Advanced" && [info exists ::app_obj] && $::app_obj != ""} { set endpoint [tmsh::get_field_value $path endpoint] }
+                else {
+                   regexp {(\/.*[^\}])} $path -> ex_ep
+                   set endpoint $ex_ep
+                }
+
+                # trim trailing slash only for non root ep
+                if {$endpoint != "/"} {set endpoint [string trimright $endpoint "/"] }
+
+                if { $endpoint != "" } {
+                   append excluded_entry_pages "$endpoint "
+                }
+            }
+            if { $excluded_entry_pages != "" } {
+                regsub -all {\*} $excluded_entry_pages {\\\*} excluded_entry_pages
+                tmsh_create "/ ltm data-group" "internal $EXCLUDED_ENTRY_POINT_DG records replace-all-with { $excluded_entry_pages} type string"
+                set excluded_flag 1
+            }
+        }
+    regsub __JS_EXCLUDED_PATH__ $::apg_irule $excluded_flag ::apg_irule
+    regsub __JS_SPECIFIC_PATH__ $::apg_irule $specific_flag ::apg_irule
+
+    # Inject XFF flag into irule
+    regsub __XFF__ $::apg_irule [iapp::is ::advanced_xff Yes] ::apg_irule
+
+    # Inject __USE_DIFFERENT_SSL__ flag into irule
+    regsub __SSL_VS_NAME__ $::apg_irule ${::ssl_vs_name} ::apg_irule
+    if { $::advanced_serverssl_profile != ""} { regsub __USE_DIFFERENT_SSL__ $::apg_irule true ::apg_irule } 
+    else { regsub __USE_DIFFERENT_SSL__ $::apg_irule false ::apg_irule }
+
+    foreach vs ${::vs_config__vs} {
+        puts "======= vs: $vs ========"
+        set vs_name ""
+        set vs_irule ""
+        set customer_irules ""
+
+        # Replace '/' with '_' in order to name the iRule based on Virtual Server
+        regsub -all "/" $vs "_" vs_name
+        set vs_irule_name "$::apg_irule_name\_${vs_name}"
+        set persist_vs_name "$::persist_cookie_name\_$vs_name"
+        tmsh_create "/ ltm persistence" "cookie ${persist_vs_name}"
+        # Get the pool name for selected Virtual Server
+        set vs_obj [lindex [tmsh::get_config /ltm virtual ${vs}] 0]
+        # If customer has irules configured, we want to backup them for later
+        catch {
+            foreach {rule} [tmsh::get_field_value $vs_obj rules] {
+                lappend customer_irules $rule
+            }
+        }
+        # If customer using https, then we can use "SSL::disable serverside". Otherwise we don't use it
+        if { [supports_ssl $vs_obj server] } { regsub -all __DISABLE_SSL__ $::apg_irule "SSL::disable serverside" ::apg_irule }
+        else {  regsub -all __DISABLE_SSL__ $::apg_irule "" ::apg_irule }
+
+        if { [supports_ssl $vs_obj client] } { regsub -all __PROTO__ $::apg_irule "https" ::apg_irule } 
+        else {  regsub -all __PROTO__ $::apg_irule "http" ::apg_irule }
+
+        # Add HTML profile if not exist
+        set html_profile [find_profile $vs_obj "profile" "html"]
+        if { $html_profile == "" } {
+            set no_profile true
+            set html_profile ${::apg_inject_html_profile_name}
+        } else {
+            set profile_obj [lindex [tmsh::get_config /ltm profile html ${html_profile}] 0]
+            catch { 
+                set html_rules [tmsh::get_field_value $profile_obj rules]
+                tmsh_modify "/ ltm profile" "html ${::apg_inject_html_profile_name} rules add { $html_rules }"
+            }
+        }
+
+        config_js_injection
+
+        # Check if VS has oneconnect profile, if no we add default one.
+        set oneconnect_profile [find_profile $vs_obj "profile" "one-connect"]
+        if { $oneconnect_profile == ""} { set oneconnect_profile $::iapp_oneconnect }
+
+        ## Handle Cookie Persistence
+        set cookie_persist [find_profile $vs_obj "persist" "cookie"]
+        if {$::cookie_persistence == "Enable"} {
+            if {$::advanced_serverssl_profile == ""}  {
+                # Customer enabled cookie persistence and persist cookie not attached to VS --> attached default cookie persistence
+                regsub __COOKIE_PERSIST__ $::apg_irule "persist cookie insert \"$tmsh::app_name\_persist_cookie\"" ::apg_irule
+                if {$cookie_persist == "" || $cookie_persist == ${persist_vs_name}} {
+                    tmsh_modify "/ ltm virtual" "${vs} persist replace-all-with { ${persist_vs_name} }"
+                    # Disable cookie persistence for customer 
+                    regsub __APP_PERSIST_NONE__ $::apg_irule {persist none} ::apg_irule
+                } else {
+                    # Cookie persistence attached to VS and costumer enable cookie persistence
+                    regsub __APP_PERSIST_NONE__ $::apg_irule {} ::apg_irule
+                }
+            } else {
+                # The iApp will created different VS for apg traffic (since different SSL profile selected)
+                # --> since the traffic route from the VS, it will handle the cookie persistence and no need for iRule handeling
+                # The cookie persistence profile will create from set_apg_vs proc
+                regsub __APP_PERSIST_NONE__ $::apg_irule {} ::apg_irule
+                regsub __COOKIE_PERSIST__ $::apg_irule {} ::apg_irule
+
+                # The user select different SSL profile so the request will route to ssl_vs --> it will handle the persistence 
+                if { $cookie_persist == ${persist_vs_name} } {
+                    tmsh_modify "/ ltm virtual" "${vs} persist none"
+                }
+            }
+        } else {
+            # Cookie persistence for apg pool disabled
+            regsub __APP_PERSIST_NONE__ $::apg_irule {} ::apg_irule
+            if {$::advanced_serverssl_profile == "" && $cookie_persist != ""}  {
+                # Customer disable the persistence but set persistence to the application
+                # In that case we need to allow persistence for application but disable it for apg pool
+                regsub __COOKIE_PERSIST__ $::apg_irule {persist none} ::apg_irule
+            } else {
+                # The iApp creates new VS, so no need for persistence handling on iRule
+                regsub __COOKIE_PERSIST__ $::apg_irule {} ::apg_irule
+            }
+
+            # The founded persistence profile set by the iApp --> Remove it while the user disable the profile
+            if { $cookie_persist == ${persist_vs_name} } {
+                tmsh_modify "/ ltm virtual" "${vs} persist none"
+            }
+        }
+
+        regsub -all "\\\\" $::apg_irule "\\\\\\\\" vs_irule
+        regsub -all {\$} $::apg_irule "\\\\$" vs_irule
+        # Set the iRule content
+
+
+        tmsh_create "/ ltm rule" "${vs_irule_name} \{ $vs_irule \}"
+
+        lappend customer_irules ${vs_irule_name}
+
+        tmsh_modify "/ ltm virtual" "${vs} { profiles delete { ${html_profile} } profiles add { ${oneconnect_profile} ${::apg_inject_html_profile_name} } rules { ${customer_irules} } }"
+
+        # Create vs for bigip <-> apg in case client has chose to use another sslprofile between them.
+        set_apg_vs $vs_obj
+    }
+}
+
+#*************
+#***** Return the tag location, after or before tag. (0-> after, 1-> before)
+#*************
+proc get_tag_location {tag} {
+    switch -- $tag {
+        "After <head>" { return "tag-append-html"}
+        "After </title>" { return "tag-append-html" }
+        "After <body>" { return "tag-append-html" }
+        "Before <script>" { return "tag-prepend-html" }
+    }
+    # Default is after tag
+    return "tag-append-html"
+}
+
+#*************
+#***** Return the tag tag name
+#*************
+proc get_tag_name {tag} {
+    puts "received tag: $tag"
+    switch -- $tag {
+        "After <head>" { return "head" }
+        "After </title>" { return "/title" }
+        "After <body>" { return "body" }
+        "Before <script>" { return "script" }
+    }
+    return $tag
+}
+
+#*************
+#***** Main routine
+#*************
+cleanup
+if { [iapp::is ::iapp_settings__clean Yes]} {
+    return
+}
+if { $::product__did == "No" && $::product__safe == "No" && $::product__rec == "No" } {
+    puts "Error, no product was chosen."
+} else { config }
+
+}
+    			macro {}
+    			presentation{
+define choice yesno display "small" default "No" {"Yes", "No"}
+define choice enable_disable display "medium" default "Disable" {"Enable", "Disable"}
+define choice response_code default "200" display "small" {"200", "201", "202", "204", "303", "304", "307", "400", "401", "403", "404", "405", "406", "412", "415", "500", "501"}
+section topic {
+    message introduction "Configure the BIG-IP to work with APG solution. For detailed information and configuration, see the deployment guide:"
+    message doc "https://f5cloudservices.zendesk.com/hc/en-us/article_attachments/360102924593/Deploy_Analytic_Products_iApp_Template_in_BIG-IP__v2.0.0.pdf"
+    message version "v2.0.0"
+}
+
+section iapp_settings {
+    yesno clean
+    optional (clean == "No") {
+        yesno kill_switch
+        choice config_selection display "medium" default "Basic" {"Basic", "Advanced"}
+    }
+}
+
+optional (iapp_settings.clean == "No") {
+    section product {
+        choice did display "small" default "Yes" {"Yes", "No"}
+        yesno safe
+        yesno rec
+    }
+    optional (product.safe == "Yes" || product.rec == "Yes" || product.did == "Yes" ) {
+        section js_injection {
+            string injection_path required display "xxlarge"
+            optional (iapp_settings.config_selection == "Advanced") {
+                choice injection_location default "After <head>" {"After <head>", "After <body>"}
+                choice script_attribute default "Async Defer" {"Async Defer", "Async", "Sync", "Defer"}
+                yesno inject_by_endpoint
+                optional (inject_by_endpoint == "Yes") {
+                    table injected_ep {
+                        string endpoint required display "large"
+                    }
+                }
+                yesno exclude_endpoint
+                optional (exclude_endpoint == "Yes") {
+                    table excluded_ep {
+                        string endpoint required display "large"
+                    }
+                }
+            }
+        }
+    }
+
+    optional (product.safe == "Yes" || product.rec == "Yes" ) {
+        section cookie {
+            message note "The endpoint path must start with ‘/’."
+            message lc_note "Endpoints are not case sensitive. Regardless of whether you use upper or lower case letters, all letters are set to lower case."
+            table endpoints {
+                string endpoint display "large"
+                choice c_prod display "medium" default "SAFE & Recognize" {"All","SAFE","Recognize"}
+            }
+            string enc_key display "xlarge"
+            optional (iapp_settings.config_selection == "Advanced") {
+                optional (product.safe == "Yes") {
+                    string header_name_safe display "medium" default "x-safe-fr"
+                }
+                optional (product.rec == "Yes") {
+                    string header_name_rec display "medium" default "x-apg-sr"
+                }
+            }
+        }
+    }
+
+    optional (product.safe == "Yes" || product.did == "Yes" || product.rec == "Yes") {
+        optional (iapp_settings.config_selection == "Advanced") {
+            section pool {
+                enable_disable cookie_persistence
+                string fqdn validator "FQDN" display "large" default "us.gimp.zeronaught.com"
+                yesno check
+                optional (check == "Yes") {
+                string url required display "large"
+                string port required display "small" validator "PortNumber"
+                string rc required display "small" validator "NonNegativeNumber"
+                }
+            }
+        # Closing optional(advanced)
+        }
+
+        section vs_config {
+            message note "Your virtual server must have an HTTP profile and default pool attached to it."
+            multichoice vs display "xlarge" tcl {
+                package require iapp 1.3.0
+                set ::choices "[iapp::get_items ltm virtual]"
+                return [iapp::safe_display ::choices]
+            }
+        }
+
+        optional (iapp_settings.config_selection == "Advanced") {
+            section advanced_features {
+                choice xff default "Yes" display "small" {"Yes", "No"}
+                message note "XFF injection can also be enabled on the HTTP profile. To avoid duplicate IPs in the XFF header, ensure that either the setting above is set to No, or that XFF injection is not enabled on the HTTP profile."
+                multichoice serverssl display "xlarge" default {"/Common/serverssl"} tcl {
+                    package require iapp 1.3.0
+                    set ::choices "[iapp::get_items ltm profile server-ssl]"
+                    return [iapp::safe_display ::choices]
+                }
+                string vip2vip_ip display "medium" validator "IpOrFqdn" default "1.2.3.4" required
+                choice use_domain_as_sni default "Yes" display "small" {"Yes", "No"}
+                yesno debug
+            }
+        }
+    }
+# --- Closing optional (settings/iapp_settings.clean == "No") ---
+}
+
+text {
+    topic "Welcome to the Analytics Products iApp Template"
+    topic.introduction "Introduction"
+    topic.version "Template Version:"
+    topic.doc ""
+
+    # **** General ****
+    iapp_settings "iApp Settings"
+    iapp_settings.clean "Clean Before Deletion"
+    iapp_settings.kill_switch "Activate Kill-Switch"
+    iapp_settings.config_selection "Configuration Level"
+    product "Enable Analytics Products"
+    product.did "Device ID+"
+    product.safe "SAFE"
+    product.rec "Recognize"
+
+    # *******
+    # ** JavaScript Injection
+    # *******
+    js_injection "JS Injection Configuration"
+    js_injection.injection_path "JS URL"
+    js_injection.injection_location "Location for JS Injection"
+    js_injection.inject_by_endpoint "Inject JS in Specific Webpages Only"
+    js_injection.injected_ep "JS Injection Paths"
+    js_injection.injected_ep.endpoint "Path"
+    js_injection.exclude_endpoint "Exclude JS Injection from Specific Webpages"
+    js_injection.excluded_ep "JS Excluded Paths"
+    js_injection.excluded_ep.endpoint "Path"
+    js_injection.script_attribute "Script Attribute"
+
+    # ===========================================================
+    # =============== pool configuration section ================
+    # ===========================================================
+    pool "Pool Configuration"
+    pool.cookie_persistence "Cookie Persistence for the Service Pool"
+    pool.check "Add HTTP Health Check"
+    pool.url "Liveness Path"
+    pool.port "Port"
+    pool.rc "Response Code"
+    pool.fqdn "Domain"
+
+    # ===========================================================
+    # =============== vs config Section =======================
+    # ===========================================================
+    vs_config "Virtual Server Configuration"
+    vs_config.note "Note"
+    vs_config.vs "Application’s Virtual Server(s) to Protect"
+
+    # ===========================================================
+    # =============== Advanced Features Section =================
+    # ===========================================================
+    advanced_features "Advanced Features"
+    advanced_features.xff "Add Connecting IP to Headers"
+    advanced_features.note "Note"
+    advanced_features.serverssl "Choose a Parent Server-Side SSL Profile for the Service Pool"
+    advanced_features.use_domain_as_sni "Use SNI"
+    advanced_features.vip2vip_ip "Encrypting Virtual Server IP"
+    advanced_features.debug "Enable Debug"
+
+    # ===========================================================
+    # =============== Cookie Decryption and Processing ==========
+    # ===========================================================
+    cookie "Cookie Decryption and Processing"
+    cookie.endpoints "Endpoints"
+    cookie.endpoints.endpoint "Path"
+    cookie.endpoints.c_prod "Product"
+    cookie.enc_key "Encryption Key (Base64 encoded)"
+    cookie.header_name_safe "SAFE Header Name to Add"
+    cookie.header_name_rec "Recognize Header Name to Add"
+    cookie.note "Note"
+    cookie.lc_note ""
+}
+}
+    			role-acl none
+    			run-as none
+    		}
+    	}
+    	description none
+    	ignore-verification false
+    	requires-bigip-version-max none
+    	requires-bigip-version-min 12.1.0
+    	requires-modules { ltm }
+    	signing-key none
+    	tmpl-checksum none
+    	tmpl-signature none
+    }
